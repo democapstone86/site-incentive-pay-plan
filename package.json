@@ -1,0 +1,12 @@
+{
+  "name": "site-incentive-pay-plan",
+  "version": "1.0.0",
+  "description": "Site Incentive Play Plan Prototype",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
