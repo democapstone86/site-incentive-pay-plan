@@ -155,6 +155,32 @@ const UserMenu = React.memo(function UserMenu({
   );
 });
 
+function PageBody() {
+  const userName = "Jordan";
+  return (
+    <main
+      id="main"
+      role="main"
+      className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8"
+    >
+      <section className="mb-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h1 className="text-xl font-semibold leading-6">
+            Welcome, {userName}
+          </h1>
+          <p className="mt-2 max-w-4xl text-sm text-slate-600">
+            The Capstone Back Office Tool is your central command center for
+            managing Capstone's core business operations. From payroll and
+            invoicing to site administration and incentive programs, it brings
+            every process together in one streamlined experience — ensuring
+            consistency, accuracy, and collaboration across all teams.
+          </p>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 const SIPPHomePage = React.memo(function SIPPHomePage() {
   React.useEffect(() => {
     const html = document.documentElement;
@@ -176,6 +202,7 @@ const SIPPHomePage = React.memo(function SIPPHomePage() {
         borderHex="#0E66AA"
         logoSrc="/assets/capstone-logo-white.png"
       />
+      <PageBody />
     </div>
   );
 });
