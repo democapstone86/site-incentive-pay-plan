@@ -1,5 +1,14 @@
 import * as React from "react";
-import { User } from "lucide-react";
+import {
+  Calendar,
+  FileText,
+  Wallet,
+  Settings,
+  ListChecks,
+  User,
+  ChevronDown,
+} from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 
 export type AppHeaderProps = {
   logoSrc?: string;
@@ -155,6 +164,220 @@ const UserMenu = React.memo(function UserMenu({
   );
 });
 
+const AccordionItem = React.memo(function AccordionItem({
+  icon,
+  title,
+  children,
+  defaultOpen = false,
+  linkPaths = [],
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  linkPaths?: string[];
+}) {
+  const location = useLocation();
+  const [open, setOpen] = React.useState(defaultOpen);
+  const uid = React.useId();
+  const contentId = `panel-${uid}`;
+  const labelId = `label-${uid}`;
+  const toggle = React.useCallback(() => setOpen((v) => !v), []);
+
+  React.useEffect(() => {
+    if (linkPaths.some((p) => location.pathname.startsWith(p))) {
+      setOpen(true);
+    }
+  }, [location.pathname, linkPaths]);
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
+      <button
+        type="button"
+        onClick={toggle}
+        className="flex w-full items-center justify-between rounded-lg px-4 py-3 text-left focus:outline-none focus:ring-2 focus:ring-slate-300 hover:bg-slate-50 transition-colors"
+        aria-expanded={open}
+        aria-controls={contentId}
+        id={labelId}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-slate-50">
+            {icon}
+          </div>
+          <span className="truncate font-medium text-slate-900">{title}</span>
+        </div>
+        <ChevronDown
+          className={`ml-3 h-4 w-4 text-slate-400 transition-transform duration-200 motion-reduce:transition-none ${
+            open ? "rotate-180" : "rotate-0"
+          }`}
+          aria-hidden
+        />
+      </button>
+      <div
+        id={contentId}
+        role="region"
+        aria-labelledby={labelId}
+        aria-hidden={!open}
+        className={`grid transition-[grid-template-rows] duration-200 ease-in-out motion-reduce:transition-none ${
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="border-t border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const A = React.memo(function A(p: {
+  href: string;
+  title: string;
+  desc: string;
+}) {
+  const location = useLocation();
+  const path = p.href.replace(/^#/, "");
+  const isActive = location.pathname === path;
+
+  return (
+    <div>
+      <Link
+        to={path}
+        className={`font-medium underline-offset-4 transition-all rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B5FA8]/40
+          ${
+            isActive
+              ? "text-[#094F8C] font-semibold underline"
+              : "text-[#0B5FA8] hover:text-[#094F8C] hover:underline"
+          }`}
+      >
+        {p.title}
+      </Link>
+      <p
+        className={`text-sm ${
+          isActive ? "text-slate-700 font-medium" : "text-slate-600"
+        }`}
+      >
+        {p.desc}
+      </p>
+    </div>
+  );
+});
+
+const ICONS = {
+  holiday: Calendar,
+  invoicing: FileText,
+  payroll: Wallet,
+  admin: Settings,
+  sipp: ListChecks,
+} as const;
+
+type LinkDef = { href: string; title: string; desc: string };
+
+type SectionDef = {
+  key: keyof typeof ICONS;
+  title: string;
+  defaultOpen?: boolean;
+  tagline: string;
+  description: string;
+  links: LinkDef[];
+};
+
+const SECTIONS_DATA: SectionDef[] = [
+  {
+    key: "holiday",
+    title: "Holiday Calendar",
+    defaultOpen: true,
+    tagline: "Plan with confidence.",
+    description:
+      "Stay organized with a unified calendar that highlights all company-observed holidays and site-specific schedules. It ensures teams can plan workloads effectively and avoid payroll or invoicing conflicts during non-working days.",
+    links: [
+      {
+        href: "#/calendars",
+        title: "Calendars",
+        desc: "Browse company and site calendars.",
+      },
+      {
+        href: "#/policy-assignment",
+        title: "Policy Assignment",
+        desc: "Assign holiday policies to sites or groups.",
+      },
+      {
+        href: "#/hot-state-list",
+        title: "HOT State List",
+        desc: "View and manage HOT state configurations.",
+      },
+    ],
+  },
+  {
+    key: "invoicing",
+    title: "Invoicing",
+    tagline: "Simplify billing and financial tracking.",
+    description:
+      "Create, manage, and review invoices in one centralized space. Gain transparency across billable services and maintain reliable records for audits and reporting.",
+    links: [
+      {
+        href: "#/invoice-center",
+        title: "Invoice Center",
+        desc: "Configure and access the main invoicing center.",
+      },
+      {
+        href: "#/third-party",
+        title: "Third Party",
+        desc: "Manage third-party invoicing integrations.",
+      },
+    ],
+  },
+  {
+    key: "payroll",
+    title: "Payroll",
+    tagline: "Process pay accurately and efficiently.",
+    description:
+      "Process payroll efficiently and accurately. The system integrates site performance data with pay structures, ensuring timely compensation and compliance with Capstone’s pay policies.",
+    links: [
+      {
+        href: "#/employee-time",
+        title: "Employee Time",
+        desc: "Review and adjust employee time entries.",
+      },
+    ],
+  },
+  {
+    key: "admin",
+    title: "Site Administration",
+    tagline: "Manage your site with confidence.",
+    description:
+      "Configure site details, control user permissions, and maintain operational settings all in one place. Designed for clarity, consistency, and control.",
+    links: [
+      {
+        href: "#/site-admin",
+        title: "Site Admin",
+        desc: "Access site configuration and administration tools.",
+      },
+    ],
+  },
+  {
+    key: "sipp",
+    title: "Site Incentive Pay Plan",
+    tagline: "Reward performance, the right way.",
+    description:
+      "Access and configure incentive pay structures through the Capstone Incentive Pay Tool, aligning rewards with measurable site performance to promote fairness and motivation across teams.",
+    links: [
+      {
+        href: "#/incentive-pay-plans",
+        title: "Incentive Pay Plans",
+        desc: "Browse active and scheduled incentive plans.",
+      },
+      {
+        href: "#/practice-sipp-calculator",
+        title: "Practice SIPP Calculator",
+        desc: "Try out the Site Incentive Pay Plan calculator.",
+      },
+    ],
+  },
+];
+
 function PageBody() {
   const userName = "Jordan";
   return (
@@ -176,6 +399,40 @@ function PageBody() {
             consistency, accuracy, and collaboration across all teams.
           </p>
         </div>
+      </section>
+      <section className="flex flex-col gap-3">
+        {SECTIONS_DATA.map(
+          ({ key, title, defaultOpen, tagline, description, links }) => {
+            const Icon = ICONS[key];
+            const linkPaths = links.map((l) => l.href.replace(/^#/, ""));
+            return (
+              <AccordionItem
+                key={key}
+                title={title}
+                icon={<Icon className="h-5 w-5" aria-hidden />}
+                defaultOpen={!!defaultOpen}
+                linkPaths={links.map((l) => l.href.replace(/^#/, ""))}
+              >
+                <div className="space-y-3">
+                  <p className="text-base font-medium text-slate-800">
+                    {tagline}
+                  </p>
+                  <p>{description}</p>
+                  <div className="mt-4 space-y-4">
+                    {links.map((l) => (
+                      <A
+                        key={l.title}
+                        href={l.href}
+                        title={l.title}
+                        desc={l.desc}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </AccordionItem>
+            );
+          }
+        )}
       </section>
     </main>
   );
