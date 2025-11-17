@@ -117,6 +117,40 @@ const UserMenu = React.memo(function UserMenu({
       >
         <User className="h-5 w-5" aria-hidden />
       </button>
+      {open && (
+        <div
+          id="user-menu"
+          ref={menuRef}
+          role="menu"
+          aria-labelledby="user-menu-button"
+          className="absolute right-0 mt-2 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg z-50"
+        >
+          <div className="h-px bg-slate-200" />
+          <div className="py-1">
+            <li>
+              <a
+                href="#profile"
+                role="menuitem"
+                ref={firstItemRef}
+                onClick={handleProfile}
+                className="block w-full px-4 py-2.5 text-sm text-slate-900 hover:bg-slate-50 focus-visible:bg-slate-100 focus-visible:outline-none leading-6"
+              >
+                User Profile
+              </a>
+            </li>
+            <li>
+              <a
+                href="#logout"
+                role="menuitem"
+                onClick={handleLogout}
+                className="block w-full px-4 py-2.5 text-sm text-slate-900 hover:bg-slate-50 focus-visible:bg-slate-100 focus-visible:outline-none leading-6"
+              >
+                Log out
+              </a>
+            </li>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
