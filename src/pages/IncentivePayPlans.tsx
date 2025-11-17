@@ -1,4 +1,14 @@
-import { memo, useMemo, useState } from "react";
+import { SortAsc } from "lucide-react";
+import React from "react";
+import {
+  memo,
+  useMemo,
+  useState,
+  createContext,
+  useContext,
+  useCallback,
+  useEffect,
+} from "react";
 import { useNavigate } from "react-router-dom";
 
 const DS = {
@@ -91,8 +101,42 @@ const INITIAL_PLANS: Record<string, any[]> = {
   ],
 };
 
+const STATUS_BADGE = {
+  Active: `${DS.badge} bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200`,
+  Pending: `${DS.badge} bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200`,
+  Inactive: `${DS.badge} bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200`,
+  Archived: `${DS.badge} bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-200`,
+} as const;
+
+const STATUS_ORDER: Record<string, number> = {
+  Active: 0,
+  Pending: 1,
+  Inactive: 2,
+  Archived: 3,
+};
+
 const cx = (...xs: Array<string | false | null | undefined>) =>
   xs.filter(Boolean).join(" ");
+
+function fmtDate(iso?: string) {
+  if (!iso) return "";
+  const d = new Date(`${iso}T00:00:00`);
+  if (isNaN(d.getTime())) return "";
+  return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(
+    d.getDate()
+  ).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+const fmtEndDate = (iso?: string) => (iso ? fmtDate(iso) : "None");
+function stableSort<T>(arr: T[], cmp: (a: T, b: T) => number) {
+  return arr
+    .map((v, i) => ({ v, i }))
+    .sort((a, b) => {
+      const d = cmp(a.v, b.v);
+      return d !== 0 ? d : a.i - b.i;
+    })
+    .map((x) => x.v);
+}
 
 function filterSites(query: string) {
   const q = String(query || "")
@@ -132,6 +176,20 @@ function daysBetweenInclusive(fromIso?: string, to?: Date) {
   b.setHours(0, 0, 0, 0);
   const ms = b.getTime() - a.getTime();
   return ms < 0 ? 0 : Math.floor(ms / (24 * 60 * 60 * 1000)) + 1;
+}
+
+function isPlanInUse(p: any) {
+  const startOk = isOnOrBeforeToday(p.startDate);
+  const expired = Boolean(
+    p.endDate && isOnOrBeforeToday(p.endDate || undefined)
+  );
+  return p.status === "Active" && !!p.inUse && startOk && !expired;
+}
+
+function isPendingPlan(p: any) {
+  const startOk = isOnOrBeforeToday(p.startDate);
+  const isArchived = p.status === "Archived";
+  return p.status === "Pending" || (!startOk && !isArchived);
 }
 
 export type Plan = {
@@ -184,6 +242,238 @@ export function computeKPI(list: Plan[], today: Date) {
   const avgDays = inUseDen ? Math.floor(daysSum / inUseDen) : 0;
   return { total, inUse, pending, notInUse, archived, avgDays };
 }
+
+const IndeterminateCheckbox = ({
+  checked,
+  indeterminate,
+  onChange,
+  ariaLabel,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  onChange: () => void;
+  ariaLabel?: string;
+}) => {
+  const ref = React.useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      aria-label={ariaLabel}
+      className="h-4 w-4 rounded border-slate-300 text-[#1769FF] focus:ring-[#1769FF]"
+      checked={checked}
+      onChange={onChange}
+    />
+  );
+};
+
+const HeaderSortCtx = createContext<any>(null);
+const Caret = ({ up }: { up: boolean }) => (
+  <svg
+    className="h-3.5 w-3.5"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    {up ? (
+      <polyline points="18 15 12 9 6 15" />
+    ) : (
+      <polyline points="6 9 12 15 18 9" />
+    )}
+  </svg>
+);
+const HeaderCell = memo(function HeaderCell({
+  label,
+  k,
+}: {
+  label: string;
+  k: string;
+}) {
+  const { sortKey, setSortKey, sortAsc, setSortAsc } =
+    useContext(HeaderSortCtx);
+  const active = sortKey === k;
+  return (
+    <th
+      scope="col"
+      className={cx(DS.table.th, "cursor-pointer select-none")}
+      onClick={() => {
+        if (active) setSortAsc(!sortAsc);
+        else {
+          setSortKey(k);
+          setSortAsc(true);
+        }
+      }}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <span
+          aria-hidden
+          className={cx(
+            "inline-flex transition-colors duration-150",
+            active ? "text-[#1769FF]" : "text-slate-400"
+          )}
+        >
+          {active ? <Caret up={sortAsc} /> : <Caret up={true} />}
+        </span>
+      </span>
+    </th>
+  );
+});
+
+const ActionsMenu = ({
+  open,
+  anchorRect,
+  onClose,
+  onAction,
+}: {
+  open: boolean;
+  anchorRect: any;
+  onClose: () => void;
+  onAction: (key: "view" | "edit" | "audit" | "archive") => void;
+}) => {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  useEffect(() => {
+    if (!open || !anchorRect) {
+      setPos(null);
+      return;
+    }
+    const gap = 6;
+    let left = anchorRect.left;
+    const maxLeft = window.innerWidth - 224 - 8;
+    left = Math.min(left, maxLeft);
+    const top = Math.min(window.innerHeight - 8, anchorRect.bottom + gap);
+    setPos({ top, left });
+  }, [open, anchorRect]);
+  useEffect(() => {
+    if (!open) return;
+    const onScrollOrResize = () => {
+      onClose();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+  if (!open || !pos) return null;
+  return (
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <div
+        className="absolute z-50 w-56 overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg"
+        style={{ top: pos.top, left: pos.left }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ul className="py-1 text-[13px] text-slate-800">
+          <li>
+            <button
+              className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2"
+              onClick={() => {
+                onAction("view");
+                onClose();
+              }}
+            >
+              <svg
+                className="h-4 w-4 text-slate-600"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>View (read only)</span>
+            </button>
+          </li>
+          <li>
+            <button
+              className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2"
+              onClick={() => {
+                onAction("edit");
+                onClose();
+              }}
+            >
+              <svg
+                className="h-4 w-4 text-slate-600"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
+              </svg>
+              <span>Edit</span>
+            </button>
+          </li>
+          <li>
+            <button
+              className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2"
+              onClick={() => {
+                onAction("audit");
+                onClose();
+              }}
+            >
+              <svg
+                className="h-4 w-4 text-slate-600"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 6v6l4 2" />
+              </svg>
+              <span>Audit Log</span>
+            </button>
+          </li>
+          <li>
+            <button
+              className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2"
+              onClick={() => {
+                onAction("archive");
+                onClose();
+              }}
+            >
+              <svg
+                className="h-4 w-4 text-slate-600"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 7h18" />
+                <path d="M19 7v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7" />
+                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              <span>Archive</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+};
 
 const KPISummary = memo(function KPISummary({
   selectedSite,
@@ -299,6 +589,13 @@ const SiteSelect = memo(function SiteSelect({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const options = useMemo(() => filterSites(q), [q]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   return (
     <div className={cx(DS.card, DS.sectionPad)}>
       <h2 className="text-[-15px] font-semibold text-slate-900">
@@ -407,14 +704,612 @@ const SiteSelect = memo(function SiteSelect({
   );
 });
 
+const DataTable = memo(function DataTable({
+  selectedSite,
+  plans,
+  selectedIds,
+  onToggleOne,
+  onToggleAll,
+  openMenuId,
+  setOpenMenuId,
+  columns,
+}: {
+  selectedSite: any;
+  plans: any[];
+  selectedIds: Set<string>;
+  onToggleOne: (id: string) => void;
+  onToggleAll: (ids: string[]) => void;
+  openMenuId: string | null;
+  setOpenMenuId: (id: string | null) => void;
+  columns: { id: string; label: string; visible: boolean }[];
+}) {
+  const visibleIds = useMemo(() => plans.map((p: any) => p.id), [plans]);
+  const [anchorRect, setAnchorRect] = useState<any>(null);
+  const allSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+  const someSelected =
+    visibleIds.some((id) => selectedIds.has(id)) && !allSelected;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenMenuId(null);
+    };
+    const onDoc = (e: MouseEvent) => {
+      const el = e.target as HTMLElement;
+      if (!el.closest?.("[data-actions-cell]")) setOpenMenuId(null);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("click", onDoc);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("click", onDoc);
+    };
+  }, [setOpenMenuId]);
+
+  const visibleCols = columns.filter((c) => c.visible);
+
+  return (
+    <section className={cx(DS.card, "mt-3")}>
+      <div className={DS.table.wrap}>
+        <table className={DS.table.el}>
+          <thead className={DS.table.head}>
+            <tr>
+              <th className={cx(DS.table.th, "w-10")}>
+                <IndeterminateCheckbox
+                  checked={allSelected}
+                  indeterminate={someSelected}
+                  onChange={() => onToggleAll(visibleIds)}
+                  ariaLabel="Select all visible"
+                />
+              </th>
+              <th className={cx(DS.table.th, "w-10")}>Actions</th>
+              {visibleCols.map((col) => (
+                <HeaderCell key={col.id} label={col.label} k={col.id} />
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {!selectedSite ? (
+              <tr>
+                <td
+                  colSpan={2 + visibleCols.length}
+                  className="px-3 py-12 text-center text-slate-600"
+                >
+                  Select a site to view incentive pay plans.
+                </td>
+              </tr>
+            ) : plans.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={2 + visibleCols.length}
+                  className="px-3 py-12 text-center text-slate-600"
+                >
+                  No plans match your search.
+                </td>
+              </tr>
+            ) : (
+              plans.map((r: any, i: number) => (
+                <tr
+                  key={r.id}
+                  className={i % 2 ? "bg-white" : "bg-slate-50/40"}
+                >
+                  <td className={cx(DS.table.td, "w-10")}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${r.name}`}
+                      className="h-4 w-4 rounded border-slate-300 text-[#1769FF] focus:ring-[#1769FF]"
+                      checked={selectedIds.has(r.id)}
+                      onChange={() => onToggleOne(r.id)}
+                    />
+                  </td>
+                  <td className={cx(DS.table.td, "relative")} data-actions-cell>
+                    <button
+                      type="button"
+                      aria-label="Row actions"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white hover:bg-slate-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuId(openMenuId === r.id ? null : r.id);
+                        setAnchorRect(
+                          (
+                            e.currentTarget as HTMLElement
+                          ).getBoundingClientRect()
+                        );
+                      }}
+                    >
+                      <svg
+                        className="h-4 w-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="12" cy="12" r="1" />
+                        <circle cx="19" cy="12" r="1" />
+                        <circle cx="5" cy="12" r="1" />
+                      </svg>
+                    </button>
+                    <ActionsMenu
+                      open={openMenuId === r.id}
+                      anchorRect={anchorRect}
+                      onClose={() => setOpenMenuId(null)}
+                      onAction={(key) => {
+                        console.log("[ACTION]", key, r);
+                      }}
+                    />
+                  </td>
+                  {visibleCols.map((col) => {
+                    if (col.id === "status")
+                      return (
+                        <td key={col.id} className={DS.table.td}>
+                          <span
+                            className={
+                              STATUS_BADGE[
+                                r.status as keyof typeof STATUS_BADGE
+                              ]
+                            }
+                          >
+                            {r.status === "Active"
+                              ? r.inUse
+                                ? "In Use"
+                                : "Active not in Use"
+                              : r.status}
+                          </span>
+                        </td>
+                      );
+                    if (col.id === "name")
+                      return (
+                        <td
+                          key={col.id}
+                          className={cx(
+                            DS.table.td,
+                            "max-w-[40ch] break-words"
+                          )}
+                        >
+                          {r.name}
+                        </td>
+                      );
+                    if (col.id === "services")
+                      return (
+                        <td
+                          key={col.id}
+                          className={cx(DS.table.td, "text-right tabular-nums")}
+                        >
+                          {r.services}
+                        </td>
+                      );
+                    if (col.id === "revenueType")
+                      return (
+                        <td key={col.id} className={DS.table.td}>
+                          {r.revenueType}
+                        </td>
+                      );
+                    if (col.id === "startDate")
+                      return (
+                        <td key={col.id} className={DS.table.td}>
+                          {fmtDate(r.startDate)}
+                        </td>
+                      );
+                    if (col.id === "endDate")
+                      return (
+                        <td key={col.id} className={DS.table.td}>
+                          {fmtEndDate(r.endDate)}
+                        </td>
+                      );
+                    return null;
+                  })}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+});
+
+const SearchAndActions = memo(function SearchAndActions({
+  q,
+  setQ,
+  selectedSite,
+  selectedCount,
+  onOpenConfirm,
+  onOpenColumns,
+}: {
+  q: string;
+  setQ: (s: string) => void;
+  selectedSite: any;
+  selectedCount: number;
+  onOpenConfirm: () => void;
+  onOpenColumns: () => void;
+}) {
+  const onChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value),
+    [setQ]
+  );
+  return (
+    <section className={cx(DS.card, "mt-4 p-3")}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-xl">
+          <svg
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            type="search"
+            inputMode="search"
+            placeholder="Search by Status, Incentive Pay Plan, or Revenue Type"
+            className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-[14px] text-slate-900 placeholder-slate-500 shadow-sm hover:border-slate-400 focus:border-[#1769FF] focus:outline-none focus:ring-2 focus:ring-[#1769FF]"
+            value={q}
+            onChange={onChange}
+            disabled={!selectedSite}
+          />
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <button
+            className={cx(DS.toolbarBtn, DS.iconBtn, DS.info)}
+            aria-label="Add"
+            disabled
+          >
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            aria-label="Column customization"
+            title="Column customization"
+            onClick={onOpenColumns}
+            className={cx(
+              DS.toolbarBtn,
+              DS.iconBtn,
+              DS.subtle,
+              "text-sky-700 ring-sky-300 hover:bg-sky-50 focus-visible:ring-2 focus-visible:ring-sky-400"
+            )}
+          >
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <circle cx="9" cy="7" r="1.5" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <circle cx="14" cy="12" r="1.5" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+              <circle cx="6.5" cy="17" r="1.5" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={onOpenConfirm}
+            disabled={!selectedSite || selectedCount === 0}
+            title={
+              selectedCount > 0
+                ? `Archive ${selectedCount} selected`
+                : "Select rows to bulk archive"
+            }
+            className={cx(
+              DS.toolbarBtn,
+              "h-8 px-2",
+              DS.dangerGhost,
+              selectedCount > 0 ? "" : "opacity-50 cursor-not-allowed"
+            )}
+            aria-label="Bulk archive"
+          >
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 6h18" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+          <button
+            className={cx(DS.toolbarBtn, DS.iconBtn, DS.subtle)}
+            aria-label="Export"
+            disabled
+          >
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 5 17 10" />
+              <line x1="12" y1="5" x2="12" y2="15" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+});
+
+function ColumnsModal({
+  columns,
+  onClose,
+  onMove,
+  onToggle,
+  onApply,
+}: {
+  columns: any[];
+  onClose: () => void;
+  onMove: (id: string, dir: -1 | 1) => void;
+  onToggle: (id: string) => void;
+  onApply?: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="absolute left-1/2 top-16 w-[620px] -translate-x-1/2 rounded-xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
+          <div>
+            <h3 className="text-[15px] font-semibold text-slate-900">
+              Customize Columns
+            </h3>
+            <p className="mt-1 text-[12px] leading-snug text-slate-600">
+              Show or hide and reorder table columns. The first two columns
+              (Select and Actions) are fixed and cannot be customized.
+            </p>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Changes update the preview immediately. Click{" "}
+              <span className="font-medium text-slate-700">Apply</span> to save.
+            </p>
+          </div>
+          <button
+            className="rounded p-1 hover:bg-slate-50"
+            onClick={onClose}
+            aria-label="Close columns"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="max-h-[55vh] overflow-auto p-4 space-y-2">
+          {columns.map((c, idx) => (
+            <div
+              key={c.id}
+              className="flex items-center justify_between rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm"
+            >
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 accent-slate-900 focus:ring-slate-900"
+                  checked={!!c.visible}
+                  onChange={() => onToggle(c.id)}
+                />
+                <span className="text-[13px] text-slate-900">{c.label}</span>
+              </label>
+              <div className="flex items-center gap-1">
+                <button
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg_white text-slate-700 hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40"
+                  disabled={idx === 0}
+                  onClick={() => onMove(c.id, -1)}
+                  aria-label="Move up"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="18 15 12 9 6 15" />
+                  </svg>
+                </button>
+                <button
+                  className="inline-flex h-7 w-7 items_center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40"
+                  disabled={idx === columns.length - 1}
+                  onClick={() => onMove(c.id, 1)}
+                  aria-label="Move down"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-5 py-3">
+          <button
+            onClick={onClose}
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[13px] text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onApply || onClose}
+            className="rounded-md bg-slate-900 px-3 py-1.5 text-[13px] font-medium text-white hover:brightness-110"
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function UIPreview() {
   const [selectedSite, setSelectedSite] = useState<any>(null);
   const [plansBySite, setPlansBySite] = useState<Record<string, any[]>>(() =>
     JSON.parse(JSON.stringify(INITIAL_PLANS))
   );
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [sortKey, setSortKey] = useState("name");
+  const [sortAsc, setSortAsc] = useState(true);
   const [statusFilter, setStatusFilter] = useState<
     "ALL" | "IN_USE" | "PENDING" | "INACTIVE"
   >("ALL");
+  const [columns, setColumns] = useState<
+    {
+      id:
+        | "status"
+        | "name"
+        | "services"
+        | "revenueType"
+        | "startDate"
+        | "endDate";
+      label: string;
+      visible: boolean;
+    }[]
+  >([
+    { id: "status", label: "Status", visible: true },
+    { id: "name", label: "Incentive Pay Plan", visible: true },
+    { id: "services", label: "Services", visible: true },
+    { id: "revenueType", label: "Revenue Type", visible: true },
+    { id: "startDate", label: "Effective Start", visible: true },
+    { id: "endDate", label: "Effective End", visible: true },
+  ]);
+  const [showColumnsModal, setShowColumnsModal] = useState(false);
+  const moveColumn = useCallback((id: string, dir: -1 | 1) => {
+    setColumns((prev) => {
+      const idx = prev.findIndex((c) => c.id === id);
+      if (idx < 0) return prev;
+      const j = idx + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      const [item] = next.splice(idx, 1);
+      next.splice(j, 0, item);
+      return next;
+    });
+  }, []);
+  const toggleColumnVisible = useCallback((id: string) => {
+    setColumns((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, visible: !c.visible } : c))
+    );
+  }, []);
+
+  const toggleOne = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+  const toggleAllVisible = useCallback((ids: string[]) => {
+    setSelectedIds((prev) => {
+      const allSelected = ids.length > 0 && ids.every((id) => prev.has(id));
+      if (allSelected) {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      }
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+  }, []);
+  const bulkArchiveSelected = useCallback(() => {
+    if (!selectedSite || selectedIds.size === 0) return;
+    setPlansBySite((prev) => {
+      const siteId = selectedSite.id;
+      const list = prev[siteId] || [];
+      const nextList = list.map((p) =>
+        selectedIds.has(p.id) ? { ...p, status: "Archived", inUse: false } : p
+      );
+      return { ...prev, [siteId]: nextList };
+    });
+    console.log("[BULK ARCHIVE]", Array.from(selectedIds));
+    setSelectedIds(new Set());
+  }, [selectedSite, selectedIds]);
+
+  const plans = useMemo(() => {
+    if (!selectedSite) return [] as any[];
+    const base = plansBySite[selectedSite.id] || [];
+    const statusFiltered =
+      statusFilter === "ALL"
+        ? base
+        : base.filter((p: any) => {
+            if (statusFilter === "IN_USE") return isPlanInUse(p);
+            if (statusFilter === "PENDING") return isPendingPlan(p);
+            if (statusFilter === "INACTIVE") return p.status === "Inactive";
+            return true;
+          });
+    const query = q.trim().toLowerCase();
+    const filtered = query
+      ? statusFiltered.filter((r: any) =>
+          [r.name, r.status, r.revenueType].some((v: any) =>
+            String(v).toLowerCase().includes(query)
+          )
+        )
+      : statusFiltered;
+    const cmp = (a: any, b: any) => {
+      let va = a[sortKey];
+      let vb = b[sortKey];
+      if (sortKey === "status") {
+        va = STATUS_ORDER[a.status];
+        vb = STATUS_ORDER[b.status];
+      } else if (sortKey === "services") {
+        va = Number(a.services);
+        vb = Number(b.services);
+      } else if (sortKey === "startDate" || sortKey === "endDate") {
+        va = va ? new Date(`${va}T00:00:00`).getTime() : 0;
+        vb = vb ? new Date(`${vb}T00:00:00`).getTime() : 0;
+      } else {
+        va = String(va).toLowerCase();
+        vb = String(vb).toLowerCase();
+      }
+      const res = va < vb ? -1 : va > vb ? 1 : 0;
+      return sortAsc ? res : -res;
+    };
+    return stableSort([...filtered], cmp);
+  }, [selectedSite, q, sortKey, sortAsc, plansBySite, statusFilter]);
   return (
     <div className="mih-h-screen bg-[#f8fafc] text-slate-900">
       {/* Header */}
@@ -515,6 +1410,40 @@ function UIPreview() {
             setStatusFilter={setStatusFilter}
           />
         </section>
+
+        <HeaderSortCtx.Provider
+          value={{ sortKey, setSortKey, SortAsc, setSortAsc }}
+        >
+          <SearchAndActions
+            q={q}
+            setQ={setQ}
+            selectedSite={selectedSite}
+            selectedCount={selectedIds.size}
+            onOpenConfirm={bulkArchiveSelected}
+            onOpenColumns={() => setShowColumnsModal(true)}
+          />
+
+          <DataTable
+            selectedSite={selectedSite}
+            plans={plans}
+            selectedIds={selectedIds}
+            onToggleOne={toggleOne}
+            onToggleAll={toggleAllVisible}
+            openMenuId={openMenuId}
+            setOpenMenuId={setOpenMenuId}
+            columns={columns}
+          />
+        </HeaderSortCtx.Provider>
+
+        {showColumnsModal && (
+          <ColumnsModal
+            columns={columns}
+            onClose={() => setShowColumnsModal(false)}
+            onMove={moveColumn}
+            onToggle={toggleColumnVisible}
+            onApply={() => setShowColumnsModal(false)}
+          />
+        )}
       </main>
     </div>
   );
