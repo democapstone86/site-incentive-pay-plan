@@ -73,6 +73,20 @@ export default function SippCalculatorPage() {
           Back to last page
         </button>
       </section>
+
+      <section className="max-w-6xl mx-auto px-4 mt-3">
+        <div className="bg-white shadow-sm border border-slate-200 rounded-2xl p-3 border-t-4">
+          <h1 className="text-xl md:text-2xl font-semibold text-gray-900">
+            Site Incentive Pay Plan Calculator
+          </h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Model site incentive pay. Enter targets and pay rules to see how
+            hourly rate and incentive change across %-to-goal. Compare actual
+            results against the target model and export a table or graph ofr
+            stakeholders.
+          </p>
+        </div>
+      </section>
     </div>
   );
 }
