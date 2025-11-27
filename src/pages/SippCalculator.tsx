@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import * as React from "react";
 
 function Button({
@@ -57,6 +58,21 @@ export default function SippCalculatorPage() {
           </Button>
         </div>
       </header>
+
+      <section className="max-w-6xl mx-auto px-4 mt-2">
+        <button
+          type="button"
+          onClick={() => {
+            if (window.history.length > 1) window.history.back();
+            else window.location.assign("/");
+          }}
+          className="inline-flex items-center gap-2 text-blue-700 hover:text-blue-800 hover:underline text-sm font-medium"
+          aria-label="Go back to the previous page"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to last page
+        </button>
+      </section>
     </div>
   );
 }
