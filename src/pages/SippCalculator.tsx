@@ -179,6 +179,10 @@ function NumberInput({
           }}
           onChange={(e) => {
             const raw = (e.target as HTMLInputElement).value;
+            if (!isCurrency && raw.includes("-")) {
+              return;
+            }
+
             setDisplay(raw);
             if (allowEmpty && raw.trim() === "") {
               onChange("");
@@ -190,7 +194,13 @@ function NumberInput({
               return;
             }
             const n = Number(raw);
-            if (Number.isFinite(n)) onChange(n);
+            if (Number.isFinite(n)) {
+              if (n < 0) {
+                onChange(0);
+                return;
+              }
+              onChange(n);
+            }
           }}
           onBlur={(e) => {
             setEditing(false);
