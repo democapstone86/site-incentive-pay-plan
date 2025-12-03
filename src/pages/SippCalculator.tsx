@@ -925,6 +925,7 @@ export default function SippCalculatorPage() {
             </p>
             <div className="space-y-[0.825rem]">
               <NumberInput
+                key={actualSource === null ? "pct-cleared" : "pct-active"}
                 label="Actual % to Goal"
                 disabled={
                   !useActual ||
@@ -951,6 +952,7 @@ export default function SippCalculatorPage() {
                 helper={`Type current % to goal. We'll compute NRPMH and Hourly from the table. Out-of-range values are clamped to [Min, Max].`}
               />
               <NumberInput
+                key={actualSource === null ? "nrpmh-cleared" : "nrpmh-active"}
                 label="Acutal NRPMH"
                 disabled={
                   !useActual ||
@@ -979,6 +981,7 @@ export default function SippCalculatorPage() {
                 helper="Type current NRPMH to compute both % to Goal and Hourly from the table."
               />
               <NumberInput
+                key={actualSource === null ? "pay-cleared" : "pay-active"}
                 label="Hourly Pay"
                 disabled={
                   !useActual ||
@@ -1039,7 +1042,7 @@ export default function SippCalculatorPage() {
                   </div>
                 ) : null}
                 <button
-                  className="h-8 px-3 rounded-lg border-slate-300 text-slate-700 hover:bg-blue-50"
+                  className="h-8 px-3 rounded-lg border-slate-300 text-blue-700 hover:bg-blue-50"
                   onClick={() => {
                     setActualSource(null);
                     setActualPctInput("");
