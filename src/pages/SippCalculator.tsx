@@ -107,7 +107,7 @@ function NumberInput({
   const clampMoney = (n: number) => {
     if (!Number.isFinite(n)) return 0;
     if (n < 0) return 0;
-    if (n > 9_999_999) return 9_999_999;
+    if (n > 10_000_000_000) return 10_000_000_000;
     return n;
   };
   const toMoneyString = (n: number) =>
@@ -191,6 +191,14 @@ function NumberInput({
             if (isCurrency) {
               const n = parseMoneyString(raw);
               if (Number.isFinite(n)) onChange(n);
+
+              const formatted = new Intl.NumberFormat("en-US", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+              }).format(n);
+
+              setDisplay(formatted);
+
               return;
             }
             const n = Number(raw);
