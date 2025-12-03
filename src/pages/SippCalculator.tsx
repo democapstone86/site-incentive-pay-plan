@@ -184,10 +184,12 @@ function NumberInput({
             }
 
             setDisplay(raw);
+
             if (allowEmpty && raw.trim() === "") {
               onChange("");
               return;
             }
+
             if (isCurrency) {
               const n = parseMoneyString(raw);
               if (Number.isFinite(n)) onChange(n);
@@ -201,6 +203,7 @@ function NumberInput({
 
               return;
             }
+
             const n = Number(raw);
             if (Number.isFinite(n)) {
               if (n < 0) {
