@@ -103,6 +103,7 @@ function NumberInput({
   [key: string]: any;
 }) {
   const isCurrency = prefix === "$";
+
   const clampMoney = (n: number) => {
     if (!Number.isFinite(n)) return 0;
     if (n < 0) return 0;
@@ -170,7 +171,7 @@ function NumberInput({
           step={step}
           className={`w-full border border-slate-300 rounded-md px-[0.825rem] py-[0.55rem] focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             prefix ? "pl-6" : ""
-          } ${suffix ? "pr-8" : ""}`}
+          } ${!isCurrency && suffix ? "pr-8" : ""}`}
           value={display}
           onFocus={(e) => {
             setEditing(true);
@@ -208,7 +209,7 @@ function NumberInput({
           disabled={disabled}
           {...restInput}
         />
-        {suffix ? (
+        {!isCurrency && suffix ? (
           <span className="absolute inset-y-0 right-3 flex items-center text-gray-400">
             {suffix}
           </span>
