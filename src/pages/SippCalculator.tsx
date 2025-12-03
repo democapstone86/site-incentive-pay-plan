@@ -87,6 +87,7 @@ function NumberInput({
   helper,
   allowEmpty = false,
   placeholder = "Enter value",
+  isPercent = false,
   ...rest
 }: {
   label: string;
@@ -100,6 +101,7 @@ function NumberInput({
   helper?: string;
   allowEmpty?: boolean;
   placeholder?: string;
+  isPercent?: boolean;
   [key: string]: any;
 }) {
   const isCurrency = prefix === "$";
@@ -171,7 +173,8 @@ function NumberInput({
 
         <input
           aria-label={ariaLabel || label}
-          type={isCurrency ? "text" : "number"}
+          type={isCurrency || isPercent ? "text" : "number"}
+          pattern={isPercent ? "[0-9]*[.]?[0-9]*" : undefined}
           inputMode="decimal"
           placeholder={isCurrency ? "Enter dollars" : placeholder}
           step={step}
@@ -811,6 +814,7 @@ export default function SippCalculatorPage() {
                   step="1"
                   ariaLabel="Minimum Percent"
                   helper="Lowest % to include in the table. Example : 50 means start at 50%."
+                  isPercent={true}
                 />
               </div>
               <div className="col-span-12 md:col-span-4">
@@ -822,6 +826,7 @@ export default function SippCalculatorPage() {
                   step="0.01"
                   ariaLabel="Step Percent"
                   helper="How much the % increases per row (e.g., 5 -> 50, 55, 60...)."
+                  isPercent={true}
                 />
               </div>
               <div className="col-span-12 md:col-span-4">
@@ -833,6 +838,7 @@ export default function SippCalculatorPage() {
                   step="1"
                   ariaLabel="Maximum Percent"
                   helper="Highest % to include. Must be greater than or equal to Min %."
+                  isPercent={true}
                 />
               </div>
               <div className="col-span-12 md:col-span-4">
@@ -949,6 +955,7 @@ export default function SippCalculatorPage() {
                 step="0.01"
                 ariaLabel="Actual Percent to Goal"
                 helper={`Type current % to goal. We'll compute NRPMH and Hourly from the table. Out-of-range values are clamped to [Min, Max].`}
+                isPercent={true}
               />
               <NumberInput
                 key={actualSource === null ? "nrpmh-cleared" : "nrpmh-active"}
