@@ -103,12 +103,14 @@ function NumberInput({
   [key: string]: any;
 }) {
   const isCurrency = prefix === "$";
+
   const clampMoney = (n: number) => {
     if (!Number.isFinite(n)) return 0;
     if (n < 0) return 0;
-    if (n > 9_999_999) return 9_999_999;
+    if (n > 10_000_000_000) return 10_000_000_000;
     return n;
   };
+
   const toMoneyString = (n: number) =>
     new Intl.NumberFormat(undefined, {
       minimumFractionDigits: 2,
@@ -116,10 +118,12 @@ function NumberInput({
     }).format(n);
 
   const parseMoneyString = (s: string) => {
+    // Let the user type dots, decimals, etc.
     const cleaned = s.replace(/[^0-9.]/g, "");
     const parts = cleaned.split(".");
     const normalized =
       parts.length > 2 ? `${parts[0]}.${parts.slice(1).join("")}` : cleaned;
+
     const n = Number(normalized);
     return Number.isFinite(n) ? clampMoney(n) : NaN;
   };
@@ -131,14 +135,15 @@ function NumberInput({
       ? ""
       : String(value)
   );
+
   const [editing, setEditing] = React.useState(false);
 
   React.useEffect(() => {
-    if (editing) return;
-    if (isCurrency) {
-      if (value === "") setDisplay("");
-      else if (typeof value === "number") setDisplay(toMoneyString(value));
-      else {
+    if (!editing) {
+      if (isCurrency) {
+        if (value === "") setDisplay("");
+        else if (typeof value === "number") setDisplay(toMoneyString(value));
+      } else {
         setDisplay(value === "" ? "" : String(value));
       }
     }
@@ -156,43 +161,59 @@ function NumberInput({
         <span className="text-sm font-medium">{label}</span>
         {helper ? <InfoTip text={helper} label={label} /> : null}
       </div>
+
       <div className="relative">
         {prefix ? (
           <span className="absolute inset-y-0 left-3 flex items-center text-gray-400">
             {prefix}
           </span>
         ) : null}
+
         <input
           aria-label={ariaLabel || label}
           type={isCurrency ? "text" : "number"}
           inputMode="decimal"
           placeholder={isCurrency ? "Enter dollars" : placeholder}
           step={step}
-          className={`w-full border border-slate-300 rounded-md px-[0.825rem] py-[0.55rem] focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full border border-slate-300 rounded-md px-[0.825rem] py-[0.55rem] text-right placeholder:text-left focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             prefix ? "pl-6" : ""
-          } ${suffix ? "pr-8" : ""}`}
+          } ${!isCurrency && suffix ? "pr-8" : ""}`}
           value={display}
+          disabled={disabled}
+          {...restInput}
           onFocus={(e) => {
             setEditing(true);
             if (typeof onFocusProp === "function") onFocusProp(e);
           }}
           onChange={(e) => {
             const raw = (e.target as HTMLInputElement).value;
+
+            if (!isCurrency && raw.includes("-")) return;
+
             setDisplay(raw);
             if (allowEmpty && raw.trim() === "") {
               onChange("");
               return;
             }
+
             if (isCurrency) {
               const n = parseMoneyString(raw);
               if (Number.isFinite(n)) onChange(n);
               return;
             }
+
             const n = Number(raw);
-            if (Number.isFinite(n)) onChange(n);
+            if (Number.isFinite(n)) {
+              if (n < 0) {
+                onChange(0);
+                return;
+              }
+              onChange(n);
+            }
           }}
           onBlur={(e) => {
             setEditing(false);
+
             if (isCurrency) {
               if (display.trim() !== "") {
                 const n = parseMoneyString(display);
@@ -203,12 +224,12 @@ function NumberInput({
                 }
               }
             }
+
             if (typeof onBlurProp === "function") onBlurProp(e);
           }}
-          disabled={disabled}
-          {...restInput}
         />
-        {suffix ? (
+
+        {!isCurrency && suffix ? (
           <span className="absolute inset-y-0 right-3 flex items-center text-gray-400">
             {suffix}
           </span>
@@ -903,6 +924,7 @@ export default function SippCalculatorPage() {
             </p>
             <div className="space-y-[0.825rem]">
               <NumberInput
+                key={actualSource === null ? "pct-cleared" : "pct-active"}
                 label="Actual % to Goal"
                 disabled={
                   !useActual ||
@@ -929,6 +951,7 @@ export default function SippCalculatorPage() {
                 helper={`Type current % to goal. We'll compute NRPMH and Hourly from the table. Out-of-range values are clamped to [Min, Max].`}
               />
               <NumberInput
+                key={actualSource === null ? "nrpmh-cleared" : "nrpmh-active"}
                 label="Acutal NRPMH"
                 disabled={
                   !useActual ||
@@ -957,6 +980,7 @@ export default function SippCalculatorPage() {
                 helper="Type current NRPMH to compute both % to Goal and Hourly from the table."
               />
               <NumberInput
+                key={actualSource === null ? "pay-cleared" : "pay-active"}
                 label="Hourly Pay"
                 disabled={
                   !useActual ||
@@ -1017,7 +1041,7 @@ export default function SippCalculatorPage() {
                   </div>
                 ) : null}
                 <button
-                  className="h-8 px-3 rounded-lg border-slate-300 text-slate-700 hover:bg-blue-50"
+                  className="h-8 px-3 rounded-lg border-slate-300 text-blue-700 hover:bg-blue-50"
                   onClick={() => {
                     setActualSource(null);
                     setActualPctInput("");
