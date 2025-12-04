@@ -139,6 +139,7 @@ function NumberInput({
   );
 
   const [editing, setEditing] = React.useState(false);
+  const MAX_VALUE = 10_000_000_000;
 
   React.useEffect(() => {
     if (!editing) {
@@ -198,6 +199,13 @@ function NumberInput({
             if (raw.trim() === "0") {
               setDisplay("");
               onChange("");
+              return;
+            }
+
+            let incoming = Number(raw);
+            if (Number.isFinite(incoming) && incoming > MAX_VALUE) {
+              setDisplay(MAX_VALUE.toString());
+              onChange(MAX_VALUE);
               return;
             }
 
