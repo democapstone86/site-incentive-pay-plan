@@ -195,6 +195,12 @@ function NumberInput({
               return;
             }
 
+            if (raw.trim() === "0") {
+              setDisplay("");
+              onChange("");
+              return;
+            }
+
             if (!isCurrency && raw.includes("-")) return;
 
             setDisplay(raw);
