@@ -191,6 +191,10 @@ function NumberInput({
           onChange={(e) => {
             const raw = (e.target as HTMLInputElement).value;
 
+            if (raw.includes("-")) {
+              return;
+            }
+
             if (!isCurrency && raw.includes("-")) return;
 
             setDisplay(raw);
