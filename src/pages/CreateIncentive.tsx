@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const DETAIL_SERVICES_ROWS = [
   { id: 1, service: "Delivery" },
@@ -10,6 +11,7 @@ const DETAIL_SERVICES_ROWS = [
 export default function CreateIncentivePayPlan() {
   const { state } = useLocation();
   const siteId = state?.siteId;
+  const navigate = useNavigate();
   const [selectedService, setSelectedService] = React.useState("");
 
   return (
@@ -29,6 +31,7 @@ export default function CreateIncentivePayPlan() {
             <div className="hidden gap-2 sm:flex">
               <button
                 type="button"
+                onClick={() => navigate("/comingsoon")}
                 className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
               >
                 View audit log
