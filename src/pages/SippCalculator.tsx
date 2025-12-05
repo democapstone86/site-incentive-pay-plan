@@ -141,13 +141,41 @@ function NumberInput({
   const [editing, setEditing] = React.useState(false);
   const MAX_VALUE = 10_000_000_000;
 
+  const sanitizeNumeric = (s: string) => {
+    return s.replace(/[^0-9.]/g, "");
+  };
+
+  const formatPercentWithCommas = (value: string) => {
+    if (!value) return "";
+
+    const [intPart, decPart] = value.replace(/,/g, "").split(".");
+    const formattedInt = Number(intPart).toLocaleString("en-US");
+
+    return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
+  };
+
+  const limitDecimals = (s: string, maxDecimals = 4) => {
+    if (!s.includes(".")) return s;
+
+    const [intPart, decPart] = s.split(".");
+    return decPart.length <= maxDecimals
+      ? s
+      : `${intPart}.${decPart.slice(0, maxDecimals)}`;
+  };
+
   React.useEffect(() => {
     if (!editing) {
       if (isCurrency) {
         if (value === "") setDisplay("");
         else if (typeof value === "number") setDisplay(toMoneyString(value));
       } else {
-        setDisplay(value === "" ? "" : String(value));
+        if (isPercent) {
+          setDisplay(
+            value === "" ? "" : formatPercentWithCommas(String(value))
+          );
+        } else {
+          setDisplay(value === "" ? "" : String(value));
+        }
       }
     }
   }, [value, isCurrency, editing]);
@@ -190,11 +218,9 @@ function NumberInput({
             if (typeof onFocusProp === "function") onFocusProp(e);
           }}
           onChange={(e) => {
-            const raw = (e.target as HTMLInputElement).value;
+            let raw = (e.target as HTMLInputElement).value;
 
-            if (raw.includes("-")) {
-              return;
-            }
+            raw = sanitizeNumeric(raw);
 
             if (raw.trim() === "0") {
               setDisplay("");
@@ -202,16 +228,62 @@ function NumberInput({
               return;
             }
 
-            let incoming = Number(raw);
+            if (isPercent) {
+              // allow digits and one decimal point
+              let cleaned = raw.replace(/[^0-9.]/g, "");
+
+              // Allow starting with decimal like ".5"
+              if (cleaned.startsWith(".")) cleaned = "0" + cleaned;
+
+              // Only allow one decimal point
+              const parts = cleaned.split(".");
+              if (parts.length > 2) return;
+
+              // Limit to 4 decimal places
+              if (parts[1] && parts[1].length > 4) {
+                parts[1] = parts[1].slice(0, 4);
+                cleaned = parts.join(".");
+              }
+
+              // Prevent 0
+              if (cleaned === "0" || cleaned === "0.") {
+                setDisplay("");
+                onChange("");
+                return;
+              }
+
+              // NO Number() conversion here — KEEP RAW STRING
+              const numeric = Number(cleaned);
+
+              // clamp to 10B but DO NOT re-string it yet
+              const clamped = numeric > MAX_VALUE ? MAX_VALUE : numeric;
+
+              // KEEP user's decimals while typing
+              let displayValue = cleaned;
+
+              // If clamped, reflect it in the UI
+              if (numeric > MAX_VALUE) {
+                displayValue = String(MAX_VALUE);
+              }
+
+              const formatted = formatPercentWithCommas(displayValue);
+
+              setDisplay(formatted);
+              onChange(clamped);
+
+              return;
+            }
+
+            const incoming = Number(raw);
+
             if (Number.isFinite(incoming) && incoming > MAX_VALUE) {
               setDisplay(MAX_VALUE.toString());
               onChange(MAX_VALUE);
               return;
             }
 
-            if (!isCurrency && raw.includes("-")) return;
-
             setDisplay(raw);
+
             if (allowEmpty && raw.trim() === "") {
               onChange("");
               return;
@@ -219,31 +291,77 @@ function NumberInput({
 
             if (isCurrency) {
               const n = parseMoneyString(raw);
-              if (Number.isFinite(n)) onChange(n);
+              if (Number.isFinite(n)) {
+                const clamped = Math.min(n, MAX_VALUE);
+                onChange(clamped);
+              }
               return;
             }
 
-            const n = Number(raw);
-            if (Number.isFinite(n)) {
-              if (n < 0) {
-                onChange(0);
-                return;
-              }
-              onChange(n);
+            if (Number.isFinite(incoming)) {
+              onChange(incoming);
             }
           }}
           onBlur={(e) => {
             setEditing(false);
 
+            let cleaned = sanitizeNumeric(display);
+
+            if (cleaned === "0") {
+              setDisplay("");
+              onChange("");
+              if (typeof onBlurProp === "function") onBlurProp(e);
+              return;
+            }
+
+            // PERCENT — format on blur also
+            if (isPercent) {
+              let cleaned = sanitizeNumeric(display);
+
+              if (!cleaned || cleaned === "0") {
+                setDisplay("");
+                onChange("");
+                if (typeof onBlurProp === "function") onBlurProp(e);
+                return;
+              }
+
+              let val = Number(cleaned);
+
+              // Clamp
+              if (val > MAX_VALUE) val = MAX_VALUE;
+
+              const formatted = formatPercentWithCommas(String(val));
+
+              setDisplay(formatted);
+              onChange(val);
+
+              if (typeof onBlurProp === "function") onBlurProp(e);
+              return;
+            }
+
+            let val = Number(cleaned);
+            if (Number.isFinite(val) && val > MAX_VALUE) val = MAX_VALUE;
+
             if (isCurrency) {
-              if (display.trim() !== "") {
-                const n = parseMoneyString(display);
+              if (cleaned.trim() !== "") {
+                const n = parseMoneyString(cleaned);
                 if (Number.isFinite(n)) {
-                  const fixed = clampMoney(n);
-                  setDisplay(toMoneyString(fixed));
-                  onChange(fixed);
+                  const clamped = Math.min(n, MAX_VALUE);
+                  const formatted = toMoneyString(clamped);
+                  setDisplay(formatted);
+                  onChange(clamped);
                 }
               }
+              if (typeof onBlurProp === "function") onBlurProp(e);
+              return;
+            }
+
+            if (!cleaned) {
+              setDisplay("");
+              onChange("");
+            } else {
+              setDisplay(String(val));
+              onChange(val);
             }
 
             if (typeof onBlurProp === "function") onBlurProp(e);
