@@ -929,6 +929,7 @@ const SearchAndActions = memo(function SearchAndActions({
     (e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value),
     [setQ]
   );
+  const navigate = useNavigate();
   return (
     <section className={cx(DS.card, "mt-4 p-3")}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -959,7 +960,12 @@ const SearchAndActions = memo(function SearchAndActions({
           <button
             className={cx(DS.toolbarBtn, DS.iconBtn, DS.info)}
             aria-label="Add"
-            disabled
+            onClick={() =>
+              navigate("/createIncentive", {
+                state: { siteId: selectedSite },
+              })
+            }
+            disabled={!selectedSite}
           >
             <svg
               className="h-4 w-4"
