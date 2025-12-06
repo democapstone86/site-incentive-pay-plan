@@ -8,11 +8,105 @@ const DETAIL_SERVICES_ROWS = [
   { id: 3, service: "Cross-Dock" },
 ];
 
+const SERVICES_NAMES = [
+  "Unloading",
+  "Selection",
+  "Labeling",
+  "Freight Running",
+  "Put Away",
+  "Repack Sorting",
+  "Trailer Stripping",
+  "Auditing",
+  "Loading",
+  "Pallet",
+];
+
+const SECTION_CONFIG = {
+  Services: {
+    dataset: SERVICES_NAMES,
+    withStatus: true,
+    showInactiveToggle: false,
+    nameColumnLabel: "Service Name",
+    hasStatusColumn: true,
+    emptyMessage:
+      "No services linked yet. Select one or more services on the left and choose Add Selected.",
+  },
+};
+
+const DEFAULT_SECTION_CONFIG = {
+  dataset: [],
+  withStatus: false,
+  showInactiveToggle: false,
+  nameColumnLabel: "Service Name",
+  hasStatusColumn: false,
+  emptyMessage:
+    "No items linked yet. Select one or more on the left and choose Add Selected.",
+};
+
+function initLinkableRows(names, options) {
+  const withStatus = options && options.withStatus;
+  return names.map((name, idx) => ({
+    id: name,
+    name,
+    status: withStatus ? (idx % 2 === 0 ? "Active" : "Inactive") : undefined,
+    linked: false,
+  }));
+}
+
+function LinkedSection(props) {
+  const { title, datasetOverride } = props;
+
+  const baseConfig = SECTION_CONFIG[title] || DEFAULT_SECTION_CONFIG;
+  const sectionConfig = {
+    ...baseConfig,
+    emptyMessage:
+      baseConfig.emptyMessage ||
+      "No " +
+        String(title).toLowerCase() +
+        " linked yet. Select one or more in the " +
+        String(title) +
+        " section on the left and choose Add Selected.",
+  };
+
+  const effectiveDataset = datasetOverride || sectionConfig.dataset;
+
+  const [rows, setRows] = React.useState(() =>
+    initLinkableRows(effectiveDataset, {
+      withStatus: sectionConfig.withStatus,
+    })
+  );
+
+  React.useEffect(() => {
+    setRows(
+      initLinkableRows(effectiveDataset, {
+        withStatus: sectionConfig.withStatus,
+      })
+    );
+  }, [effectiveDataset, sectionConfig.withStatus]);
+
+  const totalCount = rows.length;
+  return (
+    <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,2.2fr)_minmax(260px,1fr)]">
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+          <div className="flex items-center justify-between">
+            <span>{title}</span>
+            <span className="text-[10px] font-normal tracking-normal text-slate-400">
+              Total: {totalCount}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CreateIncentivePayPlan() {
   const { state } = useLocation();
   const siteId = state?.siteId;
   const navigate = useNavigate();
   const [selectedService, setSelectedService] = React.useState("");
+  const [activeTab, setActiveTab] = React.useState("details");
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -129,6 +223,47 @@ export default function CreateIncentivePayPlan() {
                 selectedService ? `-${selectedService}` : ""
               }-v.100000`}
             </div>
+          </div>
+        </div>
+      </div>
+      <div className="mx-auto max-w-6xl px-4 md:px-6 lg:px-10">
+        <div className="flex justify-center pt-4">
+          <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-medium text-slate-600">
+            <button
+              type="button"
+              onClick={() => setActiveTab("details")}
+              className={
+                "rounded-full px-4 py-1.5 transition " +
+                (activeTab === "details"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800")
+              }
+            >
+              Details
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("calculator")}
+              className={
+                "rounded-full px-4 py-1.5 transition " +
+                (activeTab === "calculator"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800")
+              }
+            >
+              Incentive pay calculator
+            </button>
+          </div>
+        </div>
+
+        <div className="py-6">
+          {/* Details tab */}
+          <div
+            className={
+              activeTab === "details" ? "flex flex-col gap-8" : "hidden"
+            }
+          >
+            <LinkedSection title="Services" />
           </div>
         </div>
       </div>
