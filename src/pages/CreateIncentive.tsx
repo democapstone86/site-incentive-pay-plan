@@ -53,6 +53,47 @@ function initLinkableRows(names, options) {
   }));
 }
 
+function filterRows(rows, query, showInactiveToggle, showInactive) {
+  let cleaned = rows
+    .map((row) => ({ ...row, name: (row.name || "").trim() }))
+    .filter((row) => row.name);
+
+  const trimmedQuery = (query || "").trim().toLowerCase();
+  if (trimmedQuery) {
+    cleaned = cleaned.filter((row) =>
+      row.name.toLowerCase().includes(trimmedQuery)
+    );
+  }
+
+  if (showInactiveToggle && !showInactive) {
+    cleaned = cleaned.filter((row) => row.status !== "Inactive");
+  }
+
+  return cleaned;
+}
+
+function applySort(rows, column, direction) {
+  const sorted = [...rows].sort((a, b) => {
+    let cmp = 0;
+
+    if (column === "name") {
+      cmp = (a.name || "").localeCompare(b.name || "");
+    } else if (column === "status") {
+      const aStatus = a.status || "";
+      const bStatus = b.status || "";
+      cmp = aStatus.localeCompare(bStatus);
+    } else if (column === "linked") {
+      const aVal = a.linked ? 1 : 0;
+      const bVal = b.linked ? 1 : 0;
+      cmp = aVal - bVal;
+    }
+
+    return direction === "asc" ? cmp : -cmp;
+  });
+
+  return sorted;
+}
+
 function applyLinkState(rows, ids, linked) {
   if (!ids.length) return rows;
   const idSet = new Set(ids);
@@ -60,7 +101,8 @@ function applyLinkState(rows, ids, linked) {
 }
 
 function LinkedSection(props) {
-  const { title, datasetOverride, onRevenueLinkedChange } = props;
+  const { title, datasetOverride, onRevenueLinkedChange, onLinkedChange } =
+    props;
 
   const baseConfig = SECTION_CONFIG[title] || DEFAULT_SECTION_CONFIG;
   const sectionConfig = {
@@ -85,7 +127,51 @@ function LinkedSection(props) {
   const [search, setSearch] = React.useState("");
   const [showInactive, setShowInactive] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState([]);
+  const [visibleCount, setVisibleCount] = React.useState(6);
+  const [linkedSearch, setLinkedSearch] = React.useState("");
+  const [sortColumn, setSortColumn] = React.useState("name");
+  const [sortDirection, setSortDirection] = React.useState("asc");
 
+  function filterRows(rows, query, showInactiveToggle, showInactive) {
+    let cleaned = rows
+      .map((row) => ({ ...row, name: (row.name || "").trim() }))
+      .filter((row) => row.name);
+
+    const trimmedQuery = (query || "").trim().toLowerCase();
+    if (trimmedQuery) {
+      cleaned = cleaned.filter((row) =>
+        row.name.toLowerCase().includes(trimmedQuery)
+      );
+    }
+
+    if (showInactiveToggle && !showInactive) {
+      cleaned = cleaned.filter((row) => row.status !== "Inactive");
+    }
+
+    return cleaned;
+  }
+
+  function applySort(rows, column, direction) {
+    const sorted = [...rows].sort((a, b) => {
+      let cmp = 0;
+
+      if (column === "name") {
+        cmp = (a.name || "").localeCompare(b.name || "");
+      } else if (column === "status") {
+        const aStatus = a.status || "";
+        const bStatus = b.status || "";
+        cmp = aStatus.localeCompare(bStatus);
+      } else if (column === "linked") {
+        const aVal = a.linked ? 1 : 0;
+        const bVal = b.linked ? 1 : 0;
+        cmp = aVal - bVal;
+      }
+
+      return direction === "asc" ? cmp : -cmp;
+    });
+
+    return sorted;
+  }
   React.useEffect(() => {
     setRows(
       initLinkableRows(effectiveDataset, {
@@ -93,6 +179,82 @@ function LinkedSection(props) {
       })
     );
   }, [effectiveDataset, sectionConfig.withStatus]);
+
+  const isRowSelected = (id) => selectedIds.includes(id);
+  const hasRevenueSelection = title === "Revenue" && selectedIds.length > 0;
+
+  const toggleSelectRow = (id) => {
+    if (title === "Revenue") {
+      setSelectedIds((prev) => (prev.includes(id) ? [] : [id]));
+      return;
+    }
+
+    if (title === "Services") {
+      const row = rows.find((r) => r.id === id);
+      if (row && row.status === "Inactive") {
+        return;
+      }
+    }
+
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSortChange = (column) => {
+    setSortColumn((prevColumn) => {
+      if (prevColumn === column) {
+        setSortDirection((prevDir) => (prevDir === "asc" ? "desc" : "asc"));
+        return prevColumn;
+      }
+      setSortDirection("asc");
+      return column;
+    });
+  };
+
+  const filteredRows = filterRows(
+    rows,
+    search,
+    sectionConfig.showInactiveToggle,
+    showInactive
+  );
+
+  const sortedRows = applySort(filteredRows, sortColumn, sortDirection);
+  const visibleRows = sortedRows.slice(0, visibleCount);
+  const showFooter = filteredRows.length > 6;
+  const canShowMore = visibleCount < filteredRows.length;
+  const canShowLess = visibleCount > 6;
+
+  const linkedRows = rows.filter((row) => row.linked);
+
+  const selectableVisibleRows =
+    title === "Services"
+      ? visibleRows.filter((row) => row.status !== "Inactive")
+      : visibleRows;
+
+  const headerCheckboxChecked =
+    selectableVisibleRows.length > 0 &&
+    selectableVisibleRows.every((row) => selectedIds.includes(row.id));
+
+  const toggleSelectAll = () => {
+    if (title === "Revenue") {
+      return;
+    }
+
+    const visibleIds = selectableVisibleRows.map((row) => row.id);
+    if (visibleIds.length === 0) return;
+
+    const allSelected = visibleIds.every((id) => selectedIds.includes(id));
+
+    setSelectedIds((prev) => {
+      if (allSelected) {
+        return prev.filter((id) => !visibleIds.includes(id));
+      }
+      const next = new Set(prev);
+      visibleIds.forEach((id) => next.add(id));
+      return Array.from(next);
+    });
+  };
 
   const handleAddSelected = () => {
     if (title === "Services") {
@@ -127,7 +289,19 @@ function LinkedSection(props) {
     setRows((current) => applyLinkState(current, selectedIds, false));
   };
 
+  const { nameColumnLabel, hasStatusColumn, emptyMessage } = sectionConfig;
+
+  const renderSortIcon = (column) => {
+    if (sortColumn !== column) return null;
+    return (
+      <span className="ml-1 text-[9px]">
+        {sortDirection === "asc" ? "▲" : "▼"}
+      </span>
+    );
+  };
+
   const totalCount = rows.length;
+  const linkedCount = linkedRows.length;
   return (
     <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,2.2fr)_minmax(260px,1fr)]">
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -180,6 +354,194 @@ function LinkedSection(props) {
             </button>
           </div>
         </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-t border-slate-100 text-left text-xs">
+            <thead className="bg-slate-50 text-[11px] font-semibold text-slate-500">
+              <tr>
+                <th className="w-10 px-4 py-2">
+                  <div className="flext items-center justify-center">
+                    <input
+                      type="checkbox"
+                      onChange={
+                        title === "Revenue" ? undefined : toggleSelectAll
+                      }
+                      disabled={title === "Revenue"}
+                      checked={
+                        title === "Revenue" ? false : headerCheckboxChecked
+                      }
+                      className="h-4 w-4 rounded border-slate-300 text-sky-600"
+                    />
+                  </div>
+                </th>
+                <th className="px-2 py-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSortChange("name")}
+                    className="flex items-center gap-1"
+                  >
+                    <span>{nameColumnLabel}</span>
+                    {renderSortIcon("name")}
+                  </button>
+                </th>
+                {hasStatusColumn && (
+                  <th className="px-2 py-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSortChange("status")}
+                      className="flex items-center gap-1"
+                    >
+                      <span>Status</span>
+                      {renderSortIcon("status")}
+                    </button>
+                  </th>
+                )}
+                <th className="w-24 px-2 py-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSortChange("linked")}
+                    className="flex items-center gap-1"
+                  >
+                    <span>Linked</span>
+                    {renderSortIcon("linked")}
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-[11px] text-slate-700">
+              {visibleRows.map((row) => {
+                const isSelected = isRowSelected(row.id);
+                const disabled =
+                  (title === "Services" && row.status === "Inactive") ||
+                  (title === "Revenue" && hasRevenueSelection && !isSelected);
+                return (
+                  <tr key={row.id} className="hover:bg-slate-50/60">
+                    <td className="px-4 py-2">
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          disabled={disabled}
+                          checked={isSelected}
+                          onChange={() => toggleSelectRow(row.id)}
+                          className={
+                            "h-4 w-4 rounded border-slate-300 text-sky-600 " +
+                            ((title === "Services" &&
+                              row.status === "Inactive") ||
+                            (title === "Revenue" &&
+                              hasRevenueSelection &&
+                              !isSelected)
+                              ? "opacity-40 cursor-not-allowed"
+                              : "")
+                          }
+                        />
+                      </div>
+                    </td>
+                    <td className="px-2 py-2 align-middle text-[11px] font-medium">
+                      {row.name}
+                    </td>
+                    {hasStatusColumn && (
+                      <td className="w-24 px-2 py-2 align-middle">
+                        {row.status ? (
+                          <span
+                            className={
+                              "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold " +
+                              (row.status === "Active"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-slate-100 text-slate-500")
+                            }
+                          >
+                            {row.status}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">—</span>
+                        )}
+                      </td>
+                    )}
+                    <td className="px-2 py-2 align-middle">
+                      <span
+                        className={
+                          "text-[11px] font-semibold " +
+                          (row.linked ? "text-emerald-600" : "text-slate-400")
+                        }
+                      >
+                        {row.linked ? "Yes" : "No"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredRows.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={hasStatusColumn ? 4 : 3}
+                    className="px-4 py-6 text-center text-[11px] text-slate-400"
+                  >
+                    No items match your filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {showFooter && (
+          <div className="flex flex-wrap items-center justify-between border-t border-slate-100 px-4 py-2 text-[11px] text-slate-500">
+            <span>
+              Showing {visibleRows.length} of {filteredRows.length}. Use search
+              to narrow the list.
+            </span>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              {canShowMore && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((prev) => prev + 6)}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Load more
+                </button>
+              )}
+              {canShowLess && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setVisibleCount((prev) => Math.max(6, prev - 6))
+                  }
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Show less
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="rounded-2xl border border-slate-200 bg-white  px-4 py-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between text-sm font-semibold text-slate-900">
+          <span>Linked {title}</span>
+          <span className="text-[11px] font-normal text-slate-400">
+            {linkedCount} linked
+          </span>
+        </div>
+
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex min-w-[180px] flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px]">
+            <span className="text-[10px] text-slate-400">🔍</span>
+            <input
+              type="text"
+              value={linkedSearch}
+              onChange={(e) => setLinkedSearch(e.target.value)}
+              placeholder={`Search linked ${String(title).toLowerCase()}...`}
+              className="w-full bg-transparent text-xs outline-none placeholder:text-slate-400"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {linkedCount === 0 && (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-[11px] text-slate-400">
+              {emptyMessage}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -193,6 +555,7 @@ export default function CreateIncentivePayPlan() {
   const [activeTab, setActiveTab] = React.useState("details");
   const [effectiveStartDate, setEffectiveStartDate] = React.useState("");
   const [effectiveEndDate, setEffectiveEndDate] = React.useState("");
+  const [linkedSerivces, setLinkedServices] = React.useState([]);
   const [isArchived, setIsArchived] = React.useState(false);
 
   let dateError = "";
@@ -373,7 +736,10 @@ export default function CreateIncentivePayPlan() {
               activeTab === "details" ? "flex flex-col gap-8" : "hidden"
             }
           >
-            <LinkedSection title="Services" />
+            <LinkedSection
+              title="Services"
+              onLinkedChange={setLinkedServices}
+            />
           </div>
           <div
             className={
