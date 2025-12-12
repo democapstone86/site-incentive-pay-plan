@@ -100,6 +100,36 @@ function applyLinkState(rows, ids, linked) {
   return rows.map((row) => (idSet.has(row.id) ? { ...row, linked } : row));
 }
 
+function findDuplicateKeys(rows) {
+  const map = new Map();
+  for (const row of rows) {
+    if (!row.service || !row.revenueType || !row.attribute || !row.workFunction)
+      continue;
+    const key = [
+      row.service,
+      row.revenueType,
+      row.attribute,
+      row.workFunction,
+    ].join("::");
+    const existing = map.get(key) || [];
+    existing.push(row.id);
+    map.set(key, existing);
+  }
+  const result = [];
+  for (const [key, ids] of map.entries()) {
+    if (ids.length > 1) {
+      result.push({ key, ids });
+    }
+  }
+  return result;
+}
+
+function truncateText(value, maxLength = 80) {
+  if (!value) return "";
+  if (value.length <= maxLength) return value;
+  return value.slice(0, maxLength - 1) + "…";
+}
+
 function LinkedSection(props) {
   const { title, datasetOverride, onRevenueLinkedChange, onLinkedChange } =
     props;
@@ -558,6 +588,16 @@ export default function CreateIncentivePayPlan() {
   const [linkedSerivces, setLinkedServices] = React.useState([]);
   const [isArchived, setIsArchived] = React.useState(false);
 
+  const [appCombinations, setAppCombinations] = React.useState([]);
+  const [combinationSearch, setCombinationSearch] = React.useState("");
+  const excludedCount = appCombinations.filter((row) => row.excluded).length;
+  const [hideExcludedRows, setHideExcludedRows] = React.useState(false);
+
+  const duplicateGroups = findDuplicateKeys(appCombinations);
+  const duplicateIds = new Set(duplicateGroups.flatMap((group) => group.ids));
+
+  let displayedCombinations = appCombinations;
+
   let dateError = "";
   if (
     effectiveStartDate &&
@@ -580,6 +620,8 @@ export default function CreateIncentivePayPlan() {
   } else if (previewStatus === "Archived") {
     previewBadgeClass += "border-slate-500 bg-slate-800 text-slate-100";
   }
+
+  const duplicateIdsSet = duplicateIds;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -835,6 +877,163 @@ export default function CreateIncentivePayPlan() {
                     <p className="mt-1 text-[10px] text-red-500">{dateError}</p>
                   )}
                 </div>
+              </div>
+
+              <div className="rounded-2xl  border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <span>Applicable combinations</span>
+                  <span className="text-[10px] font-normal normal-case text-slate-400">
+                    {appCombinations.length} total • {excludedCount} excluded
+                  </span>
+                </div>
+
+                <div className="mb-3 flex flex-wrap items-center gap-3">
+                  <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px]">
+                    <span className="text-[10px] text-slate-400">🔍</span>
+                    <input
+                      type="text"
+                      value={combinationSearch}
+                      onChange={(e) => setCombinationSearch(e.target.value)}
+                      placeholder="Search by service, revenue, attribute, or work function..."
+                      className="w-full bg-transparent text-xs outline-none placeholder:text-slate-400"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[11px] text-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setHideExcludedRows((prev) => !prev)}
+                      className={
+                        "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold " +
+                        (hideExcludedRows
+                          ? "border-slate-800 bg-slate-900 text-white"
+                          : "border-slate-200 bg-white text-slate-700")
+                      }
+                    >
+                      {hideExcludedRows
+                        ? "Hide excluded rows"
+                        : "Show excluded rows"}
+                    </button>
+                    {excludedCount > 0 && (
+                      <span className="text-[10px] text-slate-400">
+                        {excludedCount} row
+                        {excludedCount !== 1 ? "s" : ""} excluded from the list.
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {appCombinations.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-[11px] text-slate-400">
+                    No applicable combinations yet. Link at least one Service,
+                    Revenue, Attribute, and Work function in the Details tab to
+                    populate this table.
+                  </div>
+                ) : displayedCombinations.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-[11px] text-slate-400">
+                    No combinations match your current filters.
+                  </div>
+                ) : (
+                  <div className="mb-3 overflow-x-auto rounded-xl border border-slate-100">
+                    <table className="min-w-full text-left text-[11px]">
+                      <thead className="bg-slate-50 text-[11px] font-semibold text-slate-500">
+                        <tr>
+                          <th className="px-3 py-2">Services</th>
+                          <th className="px-3 py-2">Revenue</th>
+                          <th className="px-3 py-2">Attributes</th>
+                          <th className="px-3 py-2">Work functions</th>
+                          <th className="w-20 px-3 py-2 text-center">
+                            Exclude
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {displayedCombinations.map((row) => {
+                          const isDuplicate = duplicateIdsSet.has(row.id);
+                          return (
+                            <tr
+                              key={row.id}
+                              className={
+                                "hover:bg-slate-50/60 " +
+                                (isDuplicate ? "bg-red-50/40" : "")
+                              }
+                            >
+                              <td className="px-3 py-2 align-middle">
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-[11px] leading-snug line-clamp-2">
+                                    {truncateText(row.service)}
+                                  </span>
+                                  {row.excluded && (
+                                    <span className="inline-flex w-fit items-center rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-600">
+                                      Excluded
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 align-middle">
+                                <span className="text-[11px] leading-snug line-clamp-2">
+                                  {truncateText(row.revenueType)}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 align-middle">
+                                <span className="text-[11px] leading-snug line-clamp-2">
+                                  {truncateText(row.attribute)}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 align-middle">
+                                <span className="text-[11px] leading-snug line-clamp-2">
+                                  {truncateText(row.workFunction)}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 align-middle">
+                                <div className="flex items-center justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAppCombinations((prev) =>
+                                        prev.map((combo) =>
+                                          combo.id === row.id
+                                            ? {
+                                                ...combo,
+                                                excluded: !combo.excluded,
+                                              }
+                                            : combo
+                                        )
+                                      )
+                                    }
+                                    className={
+                                      "inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-semibold " +
+                                      (row.excluded
+                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                                    }
+                                    aria-label={
+                                      row.excluded
+                                        ? "Include this combination"
+                                        : "Exclude this combination"
+                                    }
+                                  >
+                                    <span className="sr-only">
+                                      {row.excluded
+                                        ? "Include combination"
+                                        : "Exclude combination"}
+                                    </span>
+                                    <span
+                                      aria-hidden="true"
+                                      className="text-xs"
+                                    >
+                                      {row.excluded ? "↩︎" : "⛔"}
+                                    </span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           </div>
