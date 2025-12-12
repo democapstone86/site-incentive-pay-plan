@@ -53,8 +53,14 @@ function initLinkableRows(names, options) {
   }));
 }
 
+function applyLinkState(rows, ids, linked) {
+  if (!ids.length) return rows;
+  const idSet = new Set(ids);
+  return rows.map((row) => (idSet.has(row.id) ? { ...row, linked } : row));
+}
+
 function LinkedSection(props) {
-  const { title, datasetOverride } = props;
+  const { title, datasetOverride, onRevenueLinkedChange } = props;
 
   const baseConfig = SECTION_CONFIG[title] || DEFAULT_SECTION_CONFIG;
   const sectionConfig = {
@@ -76,6 +82,10 @@ function LinkedSection(props) {
     })
   );
 
+  const [search, setSearch] = React.useState("");
+  const [showInactive, setShowInactive] = React.useState(false);
+  const [selectedIds, setSelectedIds] = React.useState([]);
+
   React.useEffect(() => {
     setRows(
       initLinkableRows(effectiveDataset, {
@@ -83,6 +93,39 @@ function LinkedSection(props) {
       })
     );
   }, [effectiveDataset, sectionConfig.withStatus]);
+
+  const handleAddSelected = () => {
+    if (title === "Services") {
+      setRows((current) => {
+        const activeIds = selectedIds.filter((id) => {
+          const row = current.find((r) => r.id === id);
+          return row && row.status === "Active";
+        });
+        if (!activeIds.length) return current;
+        return applyLinkState(current, activeIds, true);
+      });
+      return;
+    }
+
+    setRows((current) => applyLinkState(current, selectedIds, true));
+  };
+
+  const handleRemoveSelected = () => {
+    if (!selectedIds.length) return;
+
+    if (title === "Revenue") {
+      setRows((current) => {
+        const next = applyLinkState(current, selectedIds, false);
+        if (onRevenueLinkedChange) {
+          const linkedRow = next.find((row) => row.linked);
+          onRevenueLinkedChange(linkedRow ? linkedRow.name : null);
+        }
+        return next;
+      });
+      return;
+    }
+    setRows((current) => applyLinkState(current, selectedIds, false));
+  };
 
   const totalCount = rows.length;
   return (
@@ -94,6 +137,47 @@ function LinkedSection(props) {
             <span className="text-[10px] font-normal tracking-normal text-slate-400">
               Total: {totalCount}
             </span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
+          <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+            <span className="text-xs text-slate-400">🔍</span>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={`Search ${String(title).toLowerCase()}...`}
+              className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+            />
+          </div>
+          {sectionConfig.showInactiveToggle && (
+            <label className="flex items-center gap-2 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-sky-600"
+              />
+              show inactive
+            </label>
+          )}
+
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleAddSelected}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Add Selected
+            </button>
+            <button
+              type="button"
+              onClick={handleRemoveSelected}
+              className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-red-500"
+            >
+              Remove Selected
+            </button>
           </div>
         </div>
       </div>
