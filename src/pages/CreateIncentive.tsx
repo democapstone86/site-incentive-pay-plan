@@ -265,6 +265,21 @@ export default function CreateIncentivePayPlan() {
           >
             <LinkedSection title="Services" />
           </div>
+          <div
+            className={
+              activeTab === "calculator"
+                ? "grid gap-6 md:grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)]"
+                : "hidden"
+            }
+          >
+            <div className="flex flex-col gap-4">
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  Effective start dates
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
