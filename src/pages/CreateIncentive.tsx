@@ -191,6 +191,32 @@ export default function CreateIncentivePayPlan() {
   const navigate = useNavigate();
   const [selectedService, setSelectedService] = React.useState("");
   const [activeTab, setActiveTab] = React.useState("details");
+  const [effectiveStartDate, setEffectiveStartDate] = React.useState("");
+  const [effectiveEndDate, setEffectiveEndDate] = React.useState("");
+  const [isArchived, setIsArchived] = React.useState(false);
+
+  let dateError = "";
+  if (
+    effectiveStartDate &&
+    effectiveEndDate &&
+    effectiveEndDate < effectiveStartDate
+  ) {
+    dateError =
+      "Effective end date cannot be before Effective start date, and Effective start cannot be after Effective end.";
+  }
+  let previewStatus = "Pending";
+
+  let previewBadgeClass =
+    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ";
+  if (previewStatus === "Pending") {
+    previewBadgeClass += "border-amber-200 bg-amber-50 text-amber-700";
+  } else if (previewStatus === "In use") {
+    previewBadgeClass += "border-emerald-200 bg-emerald-50 text-emerald-700";
+  } else if (previewStatus === "Not in use") {
+    previewBadgeClass += "border-slate-200 bg-slate-100 text-slate-600";
+  } else if (previewStatus === "Archived") {
+    previewBadgeClass += "border-slate-500 bg-slate-800 text-slate-100";
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -360,6 +386,88 @@ export default function CreateIncentivePayPlan() {
               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
                 <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                   Effective start dates
+                </div>
+                <div className="space-y-3 text-[11px] text-slate-700">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-semibold text-slate-500">
+                        Effective start
+                        <span className="ml-0.5 text-[11px] font-semibold text-red-500">
+                          *
+                        </span>
+                      </label>
+                      <input
+                        type="date"
+                        value={effectiveStartDate}
+                        onChange={(e) => setEffectiveStartDate(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-medium text-slate-600">
+                        Effective end
+                        <span className="ml-1 text-[10px] font-normal text-slate-400">
+                          (optional)
+                        </span>
+                      </label>
+                      <input
+                        type="date"
+                        value={effectiveEndDate}
+                        onChange={(e) => setEffectiveEndDate(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-[11px] font-medium text-slate-600">
+                      Preview status:
+                    </span>
+                    <span className={previewBadgeClass}>{previewStatus}</span>
+                  </div>
+
+                  <label className="mt-1 flex items-center gap-2  text-[10px] text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={isArchived}
+                      onChange={(e) => setIsArchived(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-sky-600"
+                    />
+                    <span>Mark plan as archived (preview)</span>
+                  </label>
+
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Preview Status shows how this incentive plan would be
+                    treated based on the effective start/end dates and archive
+                    flag.
+                  </p>
+                  <ul className="mt-1 space-y-0.5 text-[10px] text-slate-400">
+                    <li>
+                      <span className="font-semibold">Pending</span> – Plan
+                      hasn’t started yet (no start date or start date is in the
+                      future).
+                    </li>
+                    <li>
+                      <span className="font-semibold">In use</span> – Plan is
+                      currently active between its start and end dates.
+                    </li>
+                    <li>
+                      <span className="font-semibold">Not in use</span> – Plan’s
+                      end date is in the past.
+                    </li>
+                    <li>
+                      <span className="font-semibold">Archived</span> – Plan is
+                      explicitly marked as archived, regardless of dates.
+                    </li>
+                  </ul>
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Effective start is required. Leave Effective end blank if
+                    the plan does not yet have an end date.
+                  </p>
+                  {dateError && (
+                    <p className="mt-1 text-[10px] text-red-500">{dateError}</p>
+                  )}
                 </div>
               </div>
             </div>
