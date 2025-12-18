@@ -53,6 +53,10 @@ function initLinkableRows(names, options) {
   }));
 }
 
+function deriveLinkedNames(rows) {
+  return rows.filter((row) => row.linked).map((row) => row.name);
+}
+
 function filterRows(rows, query, showInactiveToggle, showInactive) {
   let cleaned = rows
     .map((row) => ({ ...row, name: (row.name || "").trim() }))
@@ -70,6 +74,24 @@ function filterRows(rows, query, showInactiveToggle, showInactive) {
   }
 
   return cleaned;
+}
+
+function filterAndSortByName(rows, query) {
+  const cleaned = rows.map((row) => ({
+    ...row,
+    name: (row.name || "").trim(),
+  }));
+
+  const trimmedQuery = (query || "").trim();
+  if (!trimmedQuery) {
+    return cleaned.slice().sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  const q = trimmedQuery.toLowerCase();
+
+  return cleaned
+    .filter((row) => row.name.toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function applySort(rows, column, direction) {
@@ -158,6 +180,7 @@ function LinkedSection(props) {
   const [showInactive, setShowInactive] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState([]);
   const [visibleCount, setVisibleCount] = React.useState(6);
+  const [linkedVisibleCount, setLinkedVisibleCount] = React.useState(6);
   const [linkedSearch, setLinkedSearch] = React.useState("");
   const [sortColumn, setSortColumn] = React.useState("name");
   const [sortDirection, setSortDirection] = React.useState("asc");
@@ -256,6 +279,9 @@ function LinkedSection(props) {
   const canShowLess = visibleCount > 6;
 
   const linkedRows = rows.filter((row) => row.linked);
+  const filteredLinkedRows = filterAndSortByName(linkedRows, linkedSearch);
+
+  const visibleLinkedRows = filteredLinkedRows.slice(0, linkedVisibleCount);
 
   const selectableVisibleRows =
     title === "Services"
@@ -319,6 +345,23 @@ function LinkedSection(props) {
     setRows((current) => applyLinkState(current, selectedIds, false));
   };
 
+  const handleRemoveLinkedItem = (id) => {
+    if (title === "Revenue") {
+      setRows((current) => {
+        const next = applyLinkState(current, [id], false);
+        if (onRevenueLinkedChange) {
+          const linkedRow = next.find((row) => row.linked);
+          onRevenueLinkedChange(linkedRow ? linkedRow.name : null);
+        }
+        return next;
+      });
+    } else {
+      setRows((current) => applyLinkState(current, [id], false));
+    }
+    setSelectedIds((prev) => prev.filter((x) => x !== id));
+  };
+
+  const linkedNames = deriveLinkedNames(rows);
   const { nameColumnLabel, hasStatusColumn, emptyMessage } = sectionConfig;
 
   const renderSortIcon = (column) => {
@@ -569,6 +612,26 @@ function LinkedSection(props) {
           {linkedCount === 0 && (
             <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-[11px] text-slate-400">
               {emptyMessage}
+            </div>
+          )}
+          {visibleLinkedRows.map((row) => (
+            <div
+              key={row.id}
+              className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs"
+            >
+              <span className="text-slate-800">{row.name}</span>
+              <button
+                type="button"
+                onClick={() => handleRemoveLinkedItem(row.id)}
+                className="text-[11px] font-semibold text-slate-500 hover:text-red-600"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          {linkedCount > 0 && (
+            <div className="pt-2 text-[10px] text-slate-400">
+              Linked: {linkedNames.join(", ")}
             </div>
           )}
         </div>
