@@ -21,6 +21,8 @@ const SERVICES_NAMES = [
   "Pallet",
 ];
 
+const REVENUE_NAMES = ["Bill Code", "Load Type", "Dock"];
+
 const SECTION_CONFIG = {
   Services: {
     dataset: SERVICES_NAMES,
@@ -279,9 +281,18 @@ function LinkedSection(props) {
   const canShowLess = visibleCount > 6;
 
   const linkedRows = rows.filter((row) => row.linked);
+
+  React.useEffect(() => {
+    if (onLinkedChange) {
+      onLinkedChange(deriveLinkedNames(rows));
+    }
+  }, [rows]);
   const filteredLinkedRows = filterAndSortByName(linkedRows, linkedSearch);
 
   const visibleLinkedRows = filteredLinkedRows.slice(0, linkedVisibleCount);
+  const linkedCanShowMore = linkedVisibleCount < filteredLinkedRows.length;
+  const linkedCanShowLess = linkedVisibleCount > 6;
+  const showLinkedFooter = filteredLinkedRows.length > 6;
 
   const selectableVisibleRows =
     title === "Services"
@@ -634,6 +645,36 @@ function LinkedSection(props) {
               Linked: {linkedNames.join(", ")}
             </div>
           )}
+          {showLinkedFooter && (
+            <div className="mt-2 flex flex-wrap items-center justify-between border-t border-slate-100 text-[11px] text-slate-500">
+              <span>
+                Showing {visibleLinkedRows.length} of{" "}
+                {filteredLinkedRows.length} linked.
+              </span>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                {linkedCanShowMore && (
+                  <button
+                    type="button"
+                    onClick={() => setLinkedVisibleCount((prev) => prev + 6)}
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700:bg-slate-50"
+                  >
+                    Load more
+                  </button>
+                )}
+                {linkedCanShowLess && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLinkedVisibleCount((prev) => Math.max(6, prev - 6))
+                    }
+                    className="rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Show less
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -646,6 +687,8 @@ export default function CreateIncentivePayPlan() {
   const navigate = useNavigate();
   const [selectedService, setSelectedService] = React.useState("");
   const [activeTab, setActiveTab] = React.useState("details");
+  const [activeRevenueName, setActiveRevenueName] = React.useState(null);
+  const [linkedRevenues, setLinkedRevenues] = React.useState([]);
   const [effectiveStartDate, setEffectiveStartDate] = React.useState("");
   const [effectiveEndDate, setEffectiveEndDate] = React.useState("");
   const [linkedSerivces, setLinkedServices] = React.useState([]);
@@ -844,6 +887,12 @@ export default function CreateIncentivePayPlan() {
             <LinkedSection
               title="Services"
               onLinkedChange={setLinkedServices}
+            />
+            <LinkedSection
+              title="Revenue"
+              datasetOverride={linkedSerivces.length ? REVENUE_NAMES : []}
+              onRevenueLinkedChange={setActiveRevenueName}
+              onLinkedChange={setLinkedRevenues}
             />
           </div>
           <div
