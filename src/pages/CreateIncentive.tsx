@@ -82,10 +82,10 @@ const SECTION_CONFIG = {
     dataset: WORK_FUNCTION_NAMES,
     withStatus: false,
     showInactiveToggle: false,
-    nameColumnLabel: "Work function",
+    nameColumnLabel: "Work Function",
     hasStatusColumn: false,
     emptyMessage:
-      "No work functions linked yet. Work functions are dependent on Services, Revenue, and Attributes. Link those first, then select work functions on the left and choose Add Selected.",
+      "No work functions linked yet. Work Functions are dependent on Services, Revenue, and Attributes. Link those first, then select work functions on the left and choose Add Selected.",
   },
 };
 
@@ -1024,7 +1024,7 @@ export default function CreateIncentivePayPlan() {
               onLinkedChange={setLinkedAttributes}
             />
             <LinkedSection
-              title="Work functions"
+              title="Work Functions"
               datasetOverride={workFunctionDataset}
               onLinkedChange={setLinkedWorkFunctions}
             />
@@ -1172,7 +1172,7 @@ export default function CreateIncentivePayPlan() {
                 {appCombinations.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-[11px] text-slate-400">
                     No applicable combinations yet. Link at least one Service,
-                    Revenue, Attribute, and Work function in the Details tab to
+                    Revenue, Attribute, and Work Function in the Details tab to
                     populate this table.
                   </div>
                 ) : displayedCombinations.length === 0 ? (
@@ -1187,7 +1187,7 @@ export default function CreateIncentivePayPlan() {
                           <th className="px-3 py-2">Services</th>
                           <th className="px-3 py-2">Revenue</th>
                           <th className="px-3 py-2">Attributes</th>
-                          <th className="px-3 py-2">Work functions</th>
+                          <th className="px-3 py-2">Work Functions</th>
                           <th className="w-20 px-3 py-2 text-center">
                             Exclude
                           </th>
