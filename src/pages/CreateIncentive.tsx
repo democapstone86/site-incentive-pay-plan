@@ -23,6 +23,33 @@ const SERVICES_NAMES = [
 
 const REVENUE_NAMES = ["Bill Code", "Load Type", "Dock"];
 
+const REVENUE_ATTRIBUTE_MAP = {
+  "Bill Code": ["Bill Code Attr 1", "Bill Code Attr 2", "Bill Code Attr 3"],
+  "Load Type": ["Load Type Attr 1", "Load Type Attr 2", "Load Type Attr 3"],
+  Dock: ["Dock Attr 1", "Dock Attr 2", "Dock Attr 3"],
+};
+
+const ATTRIBUTE_NAMES = ["Attribute 1", "Attribute 2", "Attribute 3"];
+
+const WORK_FUNCTION_NAMES = [
+  "Auditing Production",
+  "Breakout Production",
+  "Bulk Selection Production",
+  "Clamp Selection Prod",
+  "Container Production",
+  "Dunnage Production",
+  "Event Prod",
+  "Event Selection Prod",
+  "Forklift Production",
+  "HD Selection Zone 1",
+  "Labeling Production",
+  "Lead Instruction Week 1",
+  "Selection Production",
+  "Unload Production - Cold",
+  "Unload Production - Dry",
+  "Unload Production - Groc",
+];
+
 const SECTION_CONFIG = {
   Services: {
     dataset: SERVICES_NAMES,
@@ -32,6 +59,33 @@ const SECTION_CONFIG = {
     hasStatusColumn: true,
     emptyMessage:
       "No services linked yet. Select one or more services on the left and choose Add Selected.",
+  },
+  Revenue: {
+    dataset: REVENUE_NAMES,
+    withStatus: false,
+    showInactiveToggle: false,
+    nameColumnLabel: "Revenue",
+    hasStatusColumn: false,
+    emptyMessage:
+      "No revenue linked yet. Revenue is dependent on Services. Link at least one Service first, then select a single revenue option on the left and choose Add Selected. Only one revenue can be linked at a time.",
+  },
+  Attributes: {
+    dataset: ATTRIBUTE_NAMES,
+    withStatus: false,
+    showInactiveToggle: false,
+    nameColumnLabel: "Attribute",
+    hasStatusColumn: false,
+    emptyMessage:
+      "No attributes linked yet. Attributes are dependent on Revenue. Link Revenue first, then select attributes on the left and choose Add Selected.",
+  },
+  "Work functions": {
+    dataset: WORK_FUNCTION_NAMES,
+    withStatus: false,
+    showInactiveToggle: false,
+    nameColumnLabel: "Work function",
+    hasStatusColumn: false,
+    emptyMessage:
+      "No work functions linked yet. Work functions are dependent on Services, Revenue, and Attributes. Link those first, then select work functions on the left and choose Add Selected.",
   },
 };
 
@@ -124,6 +178,15 @@ function applyLinkState(rows, ids, linked) {
   return rows.map((row) => (idSet.has(row.id) ? { ...row, linked } : row));
 }
 
+function createCombinationId(suffix) {
+  return (
+    Date.now() +
+    "-" +
+    Math.random().toString(36).slice(2) +
+    (suffix ? "-" + suffix : "")
+  );
+}
+
 function findDuplicateKeys(rows) {
   const map = new Map();
   for (const row of rows) {
@@ -186,25 +249,6 @@ function LinkedSection(props) {
   const [linkedSearch, setLinkedSearch] = React.useState("");
   const [sortColumn, setSortColumn] = React.useState("name");
   const [sortDirection, setSortDirection] = React.useState("asc");
-
-  function filterRows(rows, query, showInactiveToggle, showInactive) {
-    let cleaned = rows
-      .map((row) => ({ ...row, name: (row.name || "").trim() }))
-      .filter((row) => row.name);
-
-    const trimmedQuery = (query || "").trim().toLowerCase();
-    if (trimmedQuery) {
-      cleaned = cleaned.filter((row) =>
-        row.name.toLowerCase().includes(trimmedQuery)
-      );
-    }
-
-    if (showInactiveToggle && !showInactive) {
-      cleaned = cleaned.filter((row) => row.status !== "Inactive");
-    }
-
-    return cleaned;
-  }
 
   function applySort(rows, column, direction) {
     const sorted = [...rows].sort((a, b) => {
@@ -282,11 +326,14 @@ function LinkedSection(props) {
 
   const linkedRows = rows.filter((row) => row.linked);
 
+  const linkedNames = deriveLinkedNames(rows);
+
   React.useEffect(() => {
     if (onLinkedChange) {
       onLinkedChange(deriveLinkedNames(rows));
     }
-  }, [rows]);
+  }, [rows, onLinkedChange]);
+
   const filteredLinkedRows = filterAndSortByName(linkedRows, linkedSearch);
 
   const visibleLinkedRows = filteredLinkedRows.slice(0, linkedVisibleCount);
@@ -324,6 +371,24 @@ function LinkedSection(props) {
   };
 
   const handleAddSelected = () => {
+    if (!selectedIds.length) return;
+
+    if (title === "Revenue") {
+      const idToLink = selectedIds[0];
+      setRows((current) => {
+        const next = current.map((row) => ({
+          ...row,
+          linked: row.id === idToLink,
+        }));
+        if (onRevenueLinkedChange) {
+          const linkedRow = next.find((row) => row.linked);
+          onRevenueLinkedChange(linkedRow ? linkedRow.name : null);
+        }
+        return next;
+      });
+      return;
+    }
+
     if (title === "Services") {
       setRows((current) => {
         const activeIds = selectedIds.filter((id) => {
@@ -372,7 +437,6 @@ function LinkedSection(props) {
     setSelectedIds((prev) => prev.filter((x) => x !== id));
   };
 
-  const linkedNames = deriveLinkedNames(rows);
   const { nameColumnLabel, hasStatusColumn, emptyMessage } = sectionConfig;
 
   const renderSortIcon = (column) => {
@@ -689,9 +753,11 @@ export default function CreateIncentivePayPlan() {
   const [activeTab, setActiveTab] = React.useState("details");
   const [activeRevenueName, setActiveRevenueName] = React.useState(null);
   const [linkedRevenues, setLinkedRevenues] = React.useState([]);
+  const [linkedAttributes, setLinkedAttributes] = React.useState([]);
   const [effectiveStartDate, setEffectiveStartDate] = React.useState("");
   const [effectiveEndDate, setEffectiveEndDate] = React.useState("");
-  const [linkedSerivces, setLinkedServices] = React.useState([]);
+  const [linkedServices, setLinkedServices] = React.useState([]);
+  const [linkedWorkFunctions, setLinkedWorkFunctions] = React.useState([]);
   const [isArchived, setIsArchived] = React.useState(false);
 
   const [appCombinations, setAppCombinations] = React.useState([]);
@@ -703,6 +769,64 @@ export default function CreateIncentivePayPlan() {
   const duplicateIds = new Set(duplicateGroups.flatMap((group) => group.ids));
 
   let displayedCombinations = appCombinations;
+
+  const revenueDataset = React.useMemo(
+    () => (linkedServices.length ? REVENUE_NAMES : []),
+    [linkedServices.length]
+  );
+
+  const workFunctionDataset = React.useMemo(
+    () =>
+      linkedServices.length && linkedRevenues.length && linkedAttributes.length
+        ? WORK_FUNCTION_NAMES
+        : [],
+    [linkedServices.length, linkedRevenues.length, linkedAttributes.length]
+  );
+
+  const dynamicAttributeDatasetLocal = React.useMemo(() => {
+    if (!activeRevenueName) return [];
+    return REVENUE_ATTRIBUTE_MAP[activeRevenueName] || [];
+  }, [activeRevenueName]);
+
+  React.useEffect(() => {
+    setAppCombinations((prev) => {
+      const prevByKey = new Map();
+      prev.forEach((row) => {
+        const key = [
+          row.service,
+          row.revenueType,
+          row.attribute,
+          row.workFunction,
+        ].join("::");
+        prevByKey.set(key, row);
+      });
+      const generated = [];
+      let idx = 1;
+      linkedServices.forEach((service) => {
+        linkedRevenues.forEach((revenueType) => {
+          linkedAttributes.forEach((attribute) => {
+            linkedWorkFunctions.forEach((workFunction) => {
+              const key = [service, revenueType, attribute, workFunction].join(
+                "::"
+              );
+              const existing = prevByKey.get(key);
+              generated.push({
+                id: existing ? existing.id : createCombinationId(String(idx)),
+                label: String(idx),
+                service,
+                revenueType,
+                attribute,
+                workFunction,
+                excluded: existing ? !!existing.excluded : false,
+              });
+              idx += 1;
+            });
+          });
+        });
+      });
+      return generated;
+    });
+  }, [linkedServices, linkedRevenues, linkedAttributes, linkedWorkFunctions]);
 
   let dateError = "";
   if (
@@ -890,9 +1014,19 @@ export default function CreateIncentivePayPlan() {
             />
             <LinkedSection
               title="Revenue"
-              datasetOverride={linkedSerivces.length ? REVENUE_NAMES : []}
+              datasetOverride={revenueDataset}
               onRevenueLinkedChange={setActiveRevenueName}
               onLinkedChange={setLinkedRevenues}
+            />
+            <LinkedSection
+              title="Attributes"
+              datasetOverride={dynamicAttributeDatasetLocal}
+              onLinkedChange={setLinkedAttributes}
+            />
+            <LinkedSection
+              title="Work functions"
+              datasetOverride={workFunctionDataset}
+              onLinkedChange={setLinkedWorkFunctions}
             />
           </div>
           <div
