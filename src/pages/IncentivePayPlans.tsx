@@ -1110,7 +1110,7 @@ function ColumnsModal({
           {columns.map((c, idx) => (
             <div
               key={c.id}
-              className="flex items-center justify_between rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm"
+              className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm"
             >
               <label className="flex items-center gap-3">
                 <input
@@ -1123,7 +1123,7 @@ function ColumnsModal({
               </label>
               <div className="flex items-center gap-1">
                 <button
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg_white text-slate-700 hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40"
                   disabled={idx === 0}
                   onClick={() => onMove(c.id, -1)}
                   aria-label="Move up"
@@ -1141,7 +1141,7 @@ function ColumnsModal({
                   </svg>
                 </button>
                 <button
-                  className="inline-flex h-7 w-7 items_center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40"
                   disabled={idx === columns.length - 1}
                   onClick={() => onMove(c.id, 1)}
                   aria-label="Move down"
