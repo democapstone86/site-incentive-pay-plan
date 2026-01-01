@@ -876,7 +876,7 @@ export default function CreateIncentivePayPlan() {
     <div className="min-h-screen bg-slate-50">
       <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto max-w-6xl px-4 md:px-6 lg:px-10">
-          <div className="flex items-center justify-between py-3">
+          <div className="flex items-start justify-between py-3 sm:items-center">
             <div className="space-y-0.5">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                 Incentive Pay Plan
@@ -886,7 +886,7 @@ export default function CreateIncentivePayPlan() {
               </div>
             </div>
 
-            <div className="hidden gap-2 sm:flex">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
                 onClick={() => navigate("/comingsoon")}
