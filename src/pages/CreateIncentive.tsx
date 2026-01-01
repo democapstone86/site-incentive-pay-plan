@@ -78,7 +78,7 @@ const SECTION_CONFIG = {
     emptyMessage:
       "No attributes linked yet. Attributes are dependent on Revenue. Link Revenue first, then select attributes on the left and choose Add Selected.",
   },
-  "Work functions": {
+  "Work Functions": {
     dataset: WORK_FUNCTION_NAMES,
     withStatus: false,
     showInactiveToggle: false,
