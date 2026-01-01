@@ -874,6 +874,7 @@ export default function CreateIncentivePayPlan() {
               </button>
               <button
                 type="button"
+                onClick={() => navigate("/incentive-pay-plans")}
                 className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50"
               >
                 Cancel
