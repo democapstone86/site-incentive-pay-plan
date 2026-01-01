@@ -150,28 +150,6 @@ function filterAndSortByName(rows, query) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function applySort(rows, column, direction) {
-  const sorted = [...rows].sort((a, b) => {
-    let cmp = 0;
-
-    if (column === "name") {
-      cmp = (a.name || "").localeCompare(b.name || "");
-    } else if (column === "status") {
-      const aStatus = a.status || "";
-      const bStatus = b.status || "";
-      cmp = aStatus.localeCompare(bStatus);
-    } else if (column === "linked") {
-      const aVal = a.linked ? 1 : 0;
-      const bVal = b.linked ? 1 : 0;
-      cmp = aVal - bVal;
-    }
-
-    return direction === "asc" ? cmp : -cmp;
-  });
-
-  return sorted;
-}
-
 function applyLinkState(rows, ids, linked) {
   if (!ids.length) return rows;
   const idSet = new Set(ids);
