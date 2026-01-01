@@ -769,6 +769,19 @@ export default function CreateIncentivePayPlan() {
   const duplicateIds = new Set(duplicateGroups.flatMap((group) => group.ids));
 
   let displayedCombinations = appCombinations;
+  const trimmedQuery = (combinationSearch || "").trim().toLowerCase();
+  if (trimmedQuery) {
+    displayedCombinations = displayedCombinations.filter((row) => {
+      return (
+        (row.service && row.service.toLowerCase().includes(trimmedQuery)) ||
+        (row.revenueType &&
+          row.revenueType.toLowerCase().includes(trimmedQuery)) ||
+        (row.attribute && row.attribute.toLowerCase().includes(trimmedQuery)) ||
+        (row.workFunction &&
+          row.workFunction.toLowerCase().includes(trimmedQuery))
+      );
+    });
+  }
 
   const revenueDataset = React.useMemo(
     () => (linkedServices.length ? REVENUE_NAMES : []),
@@ -782,6 +795,12 @@ export default function CreateIncentivePayPlan() {
         : [],
     [linkedServices.length, linkedRevenues.length, linkedAttributes.length]
   );
+
+  if (hideExcludedRows) {
+    displayedCombinations = displayedCombinations.filter(
+      (row) => !row.excluded
+    );
+  }
 
   const dynamicAttributeDatasetLocal = React.useMemo(() => {
     if (!activeRevenueName) return [];
