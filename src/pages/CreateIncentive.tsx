@@ -727,7 +727,33 @@ export default function CreateIncentivePayPlan() {
   const { state } = useLocation();
   const siteId = state?.siteId;
   const navigate = useNavigate();
+
+  const [draftId, setDraftId] = React.useState<string | null>(
+    state?.draftId ?? null
+  );
+
+  const [isDraftLoading, setIsDraftLoading] = React.useState(false);
+
+  const [showSaveDraftDialog, setShowSaveDraftDialog] = React.useState(false);
+  const [showCancelDialog, setShowCancelDialog] = React.useState(false);
+
+  // Temporarily added - will be removed
+  const selectedPlans = ["40198-Forklifting-v1.0000"];
+
   const [selectedService, setSelectedService] = React.useState("");
+  const previewPlanName = React.useMemo(() => {
+    const sitePart = siteId?.id ? `SITE-${siteId.id}` : "SITE-";
+    const servicePart = selectedService ? `-${selectedService}` : "";
+    return `${sitePart}${servicePart}-v.10000000`;
+  }, [siteId?.id, selectedService]);
+
+  // Temporarily added - will be removed
+  const plans = [
+    "40198-Forklifting-v1.0000",
+    "40198-Freight Running-v1.00004",
+    "40198-TM Selection-v1.0023",
+  ];
+
   const [activeTab, setActiveTab] = React.useState("details");
   const [activeRevenueName, setActiveRevenueName] = React.useState(null);
   const [linkedRevenues, setLinkedRevenues] = React.useState([]);
@@ -739,6 +765,39 @@ export default function CreateIncentivePayPlan() {
   const [isArchived, setIsArchived] = React.useState(false);
 
   const [appCombinations, setAppCombinations] = React.useState([]);
+
+  const buildDraftPayload = React.useCallback(() => {
+    return {
+      selectedService,
+      activeTab,
+      activeRevenueName,
+      linkedServices,
+      linkedRevenues,
+      linkedAttributes,
+      linkedWorkFunctions,
+      effectiveStartDate,
+      effectiveEndDate,
+      isArchived,
+      appCombinations,
+    };
+  }, [
+    selectedService,
+    activeTab,
+    activeRevenueName,
+    linkedServices,
+    linkedRevenues,
+    linkedAttributes,
+    linkedWorkFunctions,
+    effectiveStartDate,
+    effectiveEndDate,
+    isArchived,
+    appCombinations,
+  ]);
+
+  React.useEffect(() => {
+    console.log(buildDraftPayload());
+  }, [buildDraftPayload]);
+
   const [combinationSearch, setCombinationSearch] = React.useState("");
   const excludedCount = appCombinations.filter((row) => row.excluded).length;
   const [hideExcludedRows, setHideExcludedRows] = React.useState(false);
@@ -874,20 +933,163 @@ export default function CreateIncentivePayPlan() {
               </button>
               <button
                 type="button"
-                onClick={() => navigate("/incentive-pay-plans")}
+                onClick={() => setShowCancelDialog(true)}
                 className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50"
               >
                 Cancel
               </button>
+              {showCancelDialog && (
+                <div
+                  className="fixed inset-0 z-50 flex items-start justify-center sm:block"
+                  role="dialog"
+                  aria-modal="true"
+                >
+                  {/* Backdrop */}
+                  <div
+                    className="absolute inset-0 bg-black/30"
+                    onClick={() => setShowCancelDialog(false)}
+                  />
+
+                  {/* Modal */}
+                  <div
+                    className="relative z-10 mt-24 w-[calc(100%-2rem)] max-w-lg
+                    sm:absolute sm:left-1/2 sm:top-24 sm:-translate-x-1/2
+                    rounded-2xl
+                    border border-slate-200
+                    bg-white
+                    shadow-2xl
+                    "
+                  >
+                    {/* Header */}
+                    <div className="mt-5 px-6">
+                      <h3 className="text-base font-semibold text-slate-900">
+                        Cancel changes to selected plans?
+                      </h3>
+
+                      <p className="mt-2 text-sm text-slate-600">
+                        Are you sure you want to cancel changes made to{" "}
+                        <span className="font-medium text-slate-800">3</span>{" "}
+                        selected Incentive Pay Plans?
+                      </p>
+                    </div>
+
+                    {/* Content */}
+                    <div className="mt-5 px-6">
+                      <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <p className="mb-2 text-xs font-semibold text-slate-700">
+                          Selected Incentive Pay Plans 3
+                        </p>
+
+                        <ul className="space-y-1">
+                          {plans.map((plan) => (
+                            <li key={plan} className="text-sm text-slate-800">
+                              {plan}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="mt-6 flex flex-col-reverse gap-3 px-6 py-4 sm:flex-row sm:justify-end">
+                      <button
+                        onClick={() => setShowCancelDialog(false)}
+                        className="w-full sm:w-auto rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        No, keep changes
+                      </button>
+
+                      <button
+                        onClick={() => navigate("/incentive-pay-plans")}
+                        className="w-full sm:w-auto rounded-full bg-red-600 px-5 py-2 text-sm font-medium text-white hover:bg-red-700"
+                      >
+                        Yes, Cancel selected
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               <button
                 type="button"
                 disabled={false}
+                onClick={() => setShowSaveDraftDialog(true)}
                 className={
                   "rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                 }
               >
                 Save draft
               </button>
+              {showSaveDraftDialog && (
+                <div
+                  className="fixed inset-0 z-50 flex items-start justify-center sm:block"
+                  role="dialog"
+                  aria-modal="true"
+                >
+                  {/* overlay */}
+                  <div
+                    className="absolute inset-0 bg-black/30"
+                    onClick={() => setShowSaveDraftDialog(false)}
+                  />
+
+                  {/* dialog */}
+                  <div
+                    className=" relative z-10 mt-24 w-[calc(100%-2rem)] sm:absolute sm:left-1/2 sm:top-24 sm:w-[560px] sm:-translate-x-1/2
+                    rounded-2xl
+                    border border-slate-200
+                    bg-white
+                    shadow-2xl"
+                  >
+                    {/* header */}
+                    <div className="px-6 pt-6">
+                      <h3 className="text-base font-semibold text-slate-900">
+                        Save plan as draft?
+                      </h3>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Are you sure you want to save the{" "}
+                        <span className="font-medium text-slate-800">
+                          {selectedPlans[0]}
+                        </span>{" "}
+                        Incentive Pay Plan as a draft?
+                      </p>
+                    </div>
+
+                    {/* selected plans box */}
+                    <div className="px-6 mt-5">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <p className="text-xs font-semibold text-slate-700 mb-2">
+                          Selected Incentive Pay Plans ({selectedPlans.length})
+                        </p>
+                        <ul className="space-y-1">
+                          {selectedPlans.map((plan) => (
+                            <li key={plan} className="text-sm text-slate-800">
+                              • {plan}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* footer */}
+                    <div className="mt-6 flex justify-end gap-3 border-slate-200 px-6 py-4">
+                      <button
+                        onClick={() => setShowSaveDraftDialog(false)}
+                        className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        No, Cancel
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowSaveDraftDialog(false);
+                        }}
+                        className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                      >
+                        Yes, Save as Draft
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               <button
                 type="button"
                 disabled={false}
@@ -962,9 +1164,7 @@ export default function CreateIncentivePayPlan() {
               </label>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700">
-              {`SITE-${siteId?.id ?? ""} ${
-                selectedService ? `-${selectedService}` : ""
-              }-v.100000`}
+              {previewPlanName}
             </div>
           </div>
         </div>
