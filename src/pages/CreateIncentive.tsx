@@ -744,7 +744,7 @@ export default function CreateIncentivePayPlan() {
   const previewPlanName = React.useMemo(() => {
     const sitePart = siteId?.id ? `SITE-${siteId.id}` : "SITE-";
     const servicePart = selectedService ? `-${selectedService}` : "";
-    return `${sitePart}${servicePart}-v.10000000`;
+    return `${sitePart}${servicePart}-v.10000`;
   }, [siteId?.id, selectedService]);
 
   // Temporarily added - will be removed
