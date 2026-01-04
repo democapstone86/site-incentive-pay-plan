@@ -763,21 +763,11 @@ export default function CreateIncentivePayPlan() {
 
   const [showCancelDialog, setShowCancelDialog] = React.useState(false);
 
-  // Temporarily added - will be removed
-  const selectedPlans = ["40198-Forklifting-v1.0000"];
-
   const previewPlanName = React.useMemo(() => {
     const sitePart = siteId?.id ? `SITE-${siteId.id}` : "SITE-";
     const servicePart = selectedService ? `-${selectedService}` : "";
     return `${sitePart}${servicePart}-v.10000`;
   }, [siteId?.id, selectedService]);
-
-  // Temporarily added - will be removed
-  const plans = [
-    "40198-Forklifting-v1.0000",
-    "40198-Freight Running-v1.00004",
-    "40198-TM Selection-v1.0023",
-  ];
 
   const [activeTab, setActiveTab] = React.useState("details");
   const [activeRevenueName, setActiveRevenueName] = React.useState(null);
@@ -1322,9 +1312,8 @@ export default function CreateIncentivePayPlan() {
                         </h3>
 
                         <p className="mt-2 text-sm text-slate-600">
-                          Are you sure you want to cancel changes made to{" "}
-                          <span className="font-medium text-slate-800">3</span>{" "}
-                          selected Incentive Pay Plans?
+                          Are you sure you want to discard the changes made to
+                          the selected Incentive Pay Plan?
                         </p>
                       </div>
 
@@ -1332,16 +1321,10 @@ export default function CreateIncentivePayPlan() {
                       <div className="mt-5 px-6">
                         <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                           <p className="mb-2 text-xs font-semibold text-slate-700">
-                            Selected Incentive Pay Plans 3
+                            Selected Incentive Pay Plan
                           </p>
 
-                          <ul className="space-y-1">
-                            {plans.map((plan) => (
-                              <li key={plan} className="text-sm text-slate-800">
-                                {plan}
-                              </li>
-                            ))}
-                          </ul>
+                          <ul className="space-y-1">{previewPlanName}</ul>
                         </div>
                       </div>
 
@@ -1407,7 +1390,7 @@ export default function CreateIncentivePayPlan() {
                         <p className="mt-2 text-sm text-slate-600">
                           Are you sure you want to save the{" "}
                           <span className="font-medium text-slate-800">
-                            {selectedPlans[0]}
+                            {previewPlanName}
                           </span>{" "}
                           Incentive Pay Plan as a draft?
                         </p>
@@ -1417,15 +1400,12 @@ export default function CreateIncentivePayPlan() {
                       <div className="px-6 mt-5">
                         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                           <p className="text-xs font-semibold text-slate-700 mb-2">
-                            Selected Incentive Pay Plans ({selectedPlans.length}
-                            )
+                            Selected Incentive Pay Plans
                           </p>
                           <ul className="space-y-1">
-                            {selectedPlans.map((plan) => (
-                              <li key={plan} className="text-sm text-slate-800">
-                                • {plan}
-                              </li>
-                            ))}
+                            <li className="text-sm text-slate-800">
+                              • {previewPlanName}
+                            </li>
                           </ul>
                         </div>
                       </div>
