@@ -2,6 +2,8 @@ import { Routes, Route } from "react-router-dom";
 import SippHomePage from "./pages/SippHomePage";
 import IncentivePayPlans from "./pages/IncentivePayPlans";
 import SippCalculator from "./pages/SippCalculator";
+import CreateIncentive from "./pages/CreateIncentive";
+import ComingSoon from "./pages/ComingSoon";
 
 const App = () => {
   return (
@@ -14,6 +16,12 @@ const App = () => {
 
       {/* Sipp Calculator */}
       <Route path="/practice-sipp-calculator" element={<SippCalculator />} />
+
+      {/* Create Incentive */}
+      <Route path="/createIncentive" element={<CreateIncentive />} />
+
+      {/* Coming Soon  */}
+      <Route path="/comingsoon" element={<ComingSoon />} />
     </Routes>
   );
 };
