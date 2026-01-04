@@ -1253,6 +1253,43 @@ export default function CreateIncentivePayPlan() {
     );
   }
 
+  const handleSaveDraft = async () => {
+    try {
+      if (!siteId?.id) return;
+
+      setIsDraftLoading(true);
+
+      const res = await fetch("/api/incentive-pay-plan/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteId: siteId.id,
+          draftId,
+          payload: buildDraftPayload(),
+        }),
+      });
+      if (res.status === 409) {
+        const err = await res.json();
+        alert(err.message);
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error("Draft save failed");
+      }
+
+      const savedDraft = await res.json();
+      setDraftId(savedDraft._id);
+
+      console.log("✅ Draft saved to MongoDB:", savedDraft);
+    } catch (err) {
+      console.error("❌ Failed to save draft:", err);
+      alert("Failed to save draft");
+    } finally {
+      setIsDraftLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -1420,12 +1457,13 @@ export default function CreateIncentivePayPlan() {
                         </button>
 
                         <button
-                          onClick={() => {
+                          onClick={async () => {
+                            await handleSaveDraft();
                             setShowSaveDraftDialog(false);
                           }}
                           className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700"
                         >
-                          Yes, Save as Draft
+                          {isDraftLoading ? "Saving..." : "Yes, Save as Draft"}
                         </button>
                       </div>
                     </div>
