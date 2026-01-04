@@ -20,7 +20,7 @@ export type AppHeaderProps = {
   className?: string;
 };
 
-const AppHeader = React.memo(function AppHeader({
+export const AppHeader = React.memo(function AppHeader({
   logoSrc = "/assets/capstone-logo-white.png",
   helpHref = "#help",
   onProfile = () => (window.location.href = "/profile"),
