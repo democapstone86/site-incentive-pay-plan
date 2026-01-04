@@ -2,6 +2,27 @@ import * as React from "react";
 import { useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
+import {
+  NumberInput,
+  ColKey,
+  ColumnDef,
+  DataTableFrame,
+  TableBody,
+  TableCell,
+  TableRow,
+} from "./SippCalculator";
+import { FileDown, Printer } from "lucide-react";
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ReferenceDot,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 const DETAIL_SERVICES_ROWS = [
   { id: 1, service: "Delivery" },
@@ -913,6 +934,335 @@ export default function CreateIncentivePayPlan() {
 
   const duplicateIdsSet = duplicateIds;
 
+  const [minPercent, setMinPercent] = React.useState<number | "">("");
+  const [stepPercent, setStepPercent] = React.useState<number | "">("");
+  const [maxPercent, setMaxPercent] = React.useState<number | "">("");
+  const [minWage, setMinWage] = React.useState<number | "">("");
+  const [nrpmh, setNrpmh] = React.useState<number | "">("");
+  const [payAt100, setPayAt100] = React.useState<number | "">("");
+  const [minIncentiveThreshold, setMinIncentiveThreshold] = React.useState<
+    number | ""
+  >("");
+  const [round05, setRound05] = React.useState(false);
+  const [useActual, setUseActual] = React.useState(false);
+  const [actualSource, setActualSource] = React.useState<
+    "nrpmh" | "pay" | "pct" | null
+  >(null);
+  const [actualPctInput, setActualPctInput] = React.useState<number | "">("");
+  const [actualError, setActualError] = React.useState("");
+  const [actualNote, setActualNote] = React.useState("");
+  const [actualNRMPHInput, setActualNRPMHInput] = React.useState<number | "">(
+    ""
+  );
+  const [showChart, setShowChart] = React.useState(false);
+  const [sortKey, setSortKey] = React.useState<ColKey | null>(null);
+  const [sortDir, setSortDir] = React.useState<"asc" | "desc">("asc");
+
+  type Mode = "pct" | "nrpmh" | "pay";
+  const usd = React.useMemo(
+    () =>
+      new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    []
+  );
+  const toCurrency = (n: number) => (Number.isFinite(n) ? usd.format(n) : "");
+  type Row = {
+    _i: number;
+    percentToGoal: number;
+    netRevHr: number;
+    minWageCol: number;
+    rateHr: number;
+    incentiveHr: number;
+  };
+
+  const EPS = 1e-9;
+
+  const roundToNearest = (value: number, increment: number) =>
+    !increment || increment <= 0
+      ? value
+      : Math.round(value / increment) * increment;
+
+  const parseNum = (v: unknown, fallback = 0) => {
+    if (v === null || v === undefined || v === "") return fallback;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  const rows = React.useMemo<Row[]>(() => {
+    const start = parseNum(minPercent);
+    const end = parseNum(maxPercent);
+    const step = Math.max(0.0001, parseNum(stepPercent, 1));
+    const mw = parseNum(minWage);
+    const n = parseNum(nrpmh);
+    const threshold = Math.max(0, parseNum(minIncentiveThreshold));
+    const p100 = parseNum(payAt100);
+
+    const out: Row[] = [];
+    let idx = 0;
+
+    const first = start === 0 ? start + step : start;
+    if (step <= 0 || first > end) return out;
+    const steps = Math.floor((end - first) / step);
+
+    for (let k = 0; k <= steps; k++) {
+      const pct = Number((first + k * step).toFixed(6));
+      const netRevHr = n * (pct / 100);
+      let incentiveHr = p100 * (pct / 100) - mw;
+
+      if (round05) incentiveHr = roundToNearest(incentiveHr, 0.05);
+      if (incentiveHr < threshold) incentiveHr = 0;
+
+      // Correct rate/hr formula
+      const rateHr = mw + incentiveHr;
+
+      out.push({
+        _i: idx++,
+        percentToGoal: Number(pct.toFixed(2)),
+        netRevHr: Number(netRevHr.toFixed(2)),
+        minWageCol: Number(mw.toFixed(2)),
+        rateHr: Number(rateHr.toFixed(2)),
+        incentiveHr: Number(incentiveHr.toFixed(2)),
+      });
+      if (out.length > 10000) break;
+    }
+    return out;
+  }, [
+    minPercent,
+    maxPercent,
+    stepPercent,
+    minWage,
+    nrpmh,
+    minIncentiveThreshold,
+    round05,
+    payAt100,
+  ]);
+
+  const sortedRows = React.useMemo(() => {
+    const copy = [...rows];
+    if (!sortKey) return copy.sort((a, b) => a._i - b._i);
+    copy.sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (av === bv) return a._i - b._i;
+      return (av < bv ? -1 : 1) * (sortDir === "asc" ? 1 : -1);
+    });
+    return copy;
+  }, [rows, sortKey, sortDir]);
+
+  const [visibleCount, setVisibleCount] = React.useState(100);
+  React.useEffect(() => setVisibleCount(100), [sortedRows.length]);
+  const visibleRows = React.useMemo(
+    () => sortedRows.slice(0, visibleCount),
+    [sortedRows, visibleCount]
+  );
+
+  function interpolateFromTable(mode: Mode, x_in: number) {
+    const pick = (r: Row) =>
+      mode === "pct"
+        ? { X: r.percentToGoal, Y1: r.netRevHr, Y2: r.rateHr }
+        : mode === "nrpmh"
+        ? { X: r.netRevHr, Y1: r.percentToGoal, Y2: r.rateHr }
+        : { X: r.rateHr, Y1: r.percentToGoal, Y2: r.netRevHr };
+
+    const data = rows
+      .map(pick)
+      .filter(
+        (d) =>
+          Number.isFinite(d.X) && Number.isFinite(d.Y1) && Number.isFinite(d.Y2)
+      );
+
+    if (data.length === 0)
+      return { ok: false as const, msg: "No data available.", xUsed: NaN };
+    if (data.length === 1) {
+      const d0 = data[0];
+      return {
+        ok: true as const,
+        xUsed: d0.X,
+        y1: d0.Y1,
+        y2: d0.Y2,
+        clamped: false,
+      };
+    }
+    const indexed = data.map((d, i) => ({ ...d, _i: i }));
+    indexed.sort((a, b) => (a.X === b.X ? a._i - b._i : a.X - b.X));
+
+    let x = x_in;
+    const X_min = indexed[0].X;
+    const X_max = indexed[indexed.length - 1].X;
+    let clamped = false;
+    if (x > X_max) {
+      x = X_max;
+      clamped = true;
+    } else if (x < X_min) {
+      x = X_min;
+      clamped = true;
+    }
+
+    for (let j = 0; j < indexed.length; j++) {
+      if (Math.abs(indexed[j].X - x) <= EPS) {
+        return {
+          ok: true as const,
+          xUsed: x,
+          y1: indexed[j].Y1,
+          y2: indexed[j].Y2,
+          clamped,
+        };
+      }
+    }
+
+    let i = 0;
+    while (
+      i + 1 < indexed.length &&
+      !(indexed[i].X < x && x < indexed[i + 1].X)
+    )
+      i++;
+    if (i >= indexed.length - 1) i = indexed.length - 2;
+    const left = indexed[i];
+    const right = indexed[i + 1];
+    const denom = right.X - left.X;
+    const t = Math.abs(denom) <= EPS ? 0 : (x - left.X) / denom;
+    const y1 = left.Y1 + t * (right.Y1 - left.Y1);
+    const y2 = left.Y2 + t * (right.Y2 - left.Y2);
+    return { ok: true as const, xUsed: x, y1, y2, clamped };
+  }
+
+  const [hourlyPayInput, setHourlyPayInput] = React.useState<number | "">("");
+
+  const actualComputed = React.useMemo(() => {
+    if (!useActual || actualSource === null)
+      return { pct: "", nrpmh: "", hourly: "" } as const;
+
+    setActualError("");
+    setActualNote("");
+
+    const handle = (mode: Mode, raw: number | "") => {
+      if (raw === "") return { pct: "", nrpmh: "", hourly: "" } as const;
+      const x = Number(raw);
+      if (!Number.isFinite(x)) {
+        setActualError("Enter a number");
+        return { pct: "", nrpmh: "", hourly: "" } as const;
+      }
+      const res = interpolateFromTable(mode, x);
+      if (!res.ok) {
+        setActualError(res.msg || "No data");
+        return { pct: "", nrpmh: "", hourly: "" } as const;
+      }
+      if (res.clamped) setActualNote("Clamped to table bounds");
+      if (mode === "pct")
+        return {
+          pct: x.toFixed(2),
+          nrpmh: res.y1.toFixed(2),
+          hourly: res.y2.toFixed(2),
+        } as const;
+      if (mode === "nrpmh")
+        return {
+          pct: res.y1.toFixed(2),
+          nrpmh: x.toFixed(2),
+          hourly: res.y2.toFixed(2),
+        } as const;
+      return {
+        pct: res.y1.toFixed(2),
+        nrpmh: res.y2.toFixed(2),
+        hourly: res.y2.toFixed(2),
+      } as const;
+    };
+
+    if (actualSource === "pct") return handle("pct", actualPctInput);
+    if (actualSource === "nrpmh") return handle("nrpmh", actualNRMPHInput);
+    return handle("pay", hourlyPayInput);
+  }, [
+    useActual,
+    actualSource,
+    actualPctInput,
+    actualNRMPHInput,
+    hourlyPayInput,
+    rows,
+  ]);
+
+  const exportCSV = React.useCallback(() => {
+    try {
+      const header = [
+        "% to Goal",
+        "Net Revenue/Hour",
+        "Minimum Wage",
+        "Incentive/Hour",
+        "Rate/Hour",
+      ];
+      const lines = rows.map((r) =>
+        [
+          r.percentToGoal,
+          r.netRevHr,
+          r.minWageCol,
+          r.incentiveHr,
+          r.rateHr,
+        ].join(",")
+      );
+      const csv = ["\\ufeff" + header.join(","), ...lines].join("\\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "calculator-data.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.warn("CSV export failed:", e);
+    }
+  }, [rows]);
+
+  const handlePrint = React.useCallback(() => window.print(), []);
+
+  const actualPoint = React.useMemo(() => {
+    if (!useActual) return null;
+    const px = Number(actualComputed.pct as any);
+    const py = Number(actualComputed.hourly as any);
+    return Number.isFinite(px) && Number.isFinite(py)
+      ? ({ x: px, y: py } as const)
+      : null;
+  }, [useActual, actualComputed]);
+
+  const starColor = React.useMemo(
+    () =>
+      !actualPoint ? undefined : actualPoint.x >= 100 ? "#16a34a" : "#dc2626",
+    [actualPoint]
+  );
+
+  const columns: ColumnDef[] = React.useMemo(
+    () => [
+      { key: "percentToGoal", label: "% to Goal", widthClass: "w-[160px]" },
+      { key: "netRevHr", label: "Net Revenue/Hour", widthClass: "w-[180px]" },
+      { key: "minWageCol", label: "Minimum Wage", widthClass: "w-[160px]" },
+      { key: "incentiveHr", label: "Incentive/Hour", widthClass: "w-[160px]" },
+      { key: "rateHr", label: "Rate/Hour", widthClass: "w-[160px]" },
+    ],
+    []
+  );
+
+  function StarShape(props: any) {
+    const { cx, cy, color = "#111827" } = props;
+    const size = 14;
+    return (
+      <g transform={`translate(${cx}, ${cy})`}>
+        <text
+          x={0}
+          y={0}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={size}
+          fill={color}
+        >
+          ★
+        </text>
+      </g>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -1490,6 +1840,517 @@ export default function CreateIncentivePayPlan() {
                     </table>
                   </div>
                 )}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  Site Incentive Pay Plan Calculator
+                </div>
+                <div className="space-y-3 text-[11px] text-slate-700">
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Model site incentive pay. Enter targets and pay rules to see
+                    how hourly rate and incentive change across %-to-goal.
+                    Compare actual results against the target model and export a
+                    table or graph ofr stakeholders.
+                  </p>
+                  <section>
+                    <div className="mb-3 text-[11px] font-semibold tracking-[0.12em] text-slate-500">
+                      <div className="space-y-3 text-[11px] text-slate-700">
+                        <div className="grid gap-3 sm:grids-cols-2">
+                          <div className="flex flex-col gap-1">
+                            <NumberInput
+                              label="Min %"
+                              labelClassName="text-[11px] text-slate-700"
+                              value={minPercent}
+                              onChange={setMinPercent}
+                              suffix="%"
+                              step="1"
+                              ariaLabel="Minimum Percent"
+                              helper="Lowest % to include in the table. Example : 50 means start at 50%."
+                              isPercent={true}
+                            />
+                          </div>
+
+                          <div className="flex flex-col gap-1">
+                            <NumberInput
+                              label="Step %"
+                              labelClassName="text-[11px] text-slate-700"
+                              value={stepPercent}
+                              onChange={setStepPercent}
+                              suffix="%"
+                              step="0.01"
+                              ariaLabel="Step Percent"
+                              helper="How much the % increases per row (e.g., 5 -> 50, 55, 60...)."
+                              isPercent={true}
+                            />
+                          </div>
+
+                          <div className="flex flex-col gap-1">
+                            <NumberInput
+                              label="Max %"
+                              labelClassName="text-[11px] text-slate-700"
+                              value={maxPercent}
+                              onChange={setMaxPercent}
+                              suffix="%"
+                              step="1"
+                              ariaLabel="Maximum Percent"
+                              helper="Highest % to include. Must be greater than or equal to Min %."
+                              isPercent={true}
+                            />
+                          </div>
+
+                          <div className="flex flex-col gap-1">
+                            <NumberInput
+                              label="Min Wage/ Hour"
+                              labelClassName="text-[11px] text-slate-700"
+                              value={minWage}
+                              onChange={setMinWage}
+                              prefix="$"
+                              step="0.01"
+                              ariaLabel="Minimum Wage"
+                              helper="Base hourly pay. Rate/Hr = Min Wage + Incentive/Hr."
+                            />
+                          </div>
+
+                          <div className="flex flex-col gap-1">
+                            <NumberInput
+                              label="100% NRPMH"
+                              labelClassName="text-[11px] text-slate-700"
+                              value={nrpmh}
+                              onChange={setNrpmh}
+                              prefix="$"
+                              suffix="%"
+                              step="1"
+                              ariaLabel="NRPMH at 100%"
+                              helper="Net revenue per man-hour at 100% goal. Used to compute the Net Revenue/Hour column."
+                            />
+                          </div>
+
+                          <div className="flex flex-col gap-1">
+                            <NumberInput
+                              label="Pay @ 100%"
+                              labelClassName="text-[11px] text-slate-700"
+                              value={payAt100}
+                              onChange={setPayAt100}
+                              prefix="$"
+                              suffix="%"
+                              step="1"
+                              ariaLabel="Pay at 100 percent"
+                              helper="Hourly pay when performance is 100% to goal. Incentive/Hr = Pay @ 100% - Min Wage."
+                            />
+                          </div>
+
+                          <div className="flex flex-col gap-1">
+                            <NumberInput
+                              label="Minmum Incentive Threshold"
+                              labelClassName="text-[11px] text-slate-700"
+                              value={minIncentiveThreshold}
+                              onChange={setMinIncentiveThreshold}
+                              prefix="$"
+                              suffix="%"
+                              step="1"
+                              ariaLabel="Minimum Incentive Threshold"
+                              helper="if Incentive/Hr is below this amount, it counts as $0 (no incentive)."
+                            />
+                          </div>
+
+                          <div className="mt-4 md:mt-5 flex flex-wrap items-center gap-4 justify-between">
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 accent-blue-600"
+                                checked={round05}
+                                onChange={(e) => setRound05(e.target.checked)}
+                              />
+                              <span className="text-[11px] text-slate-700">
+                                Round Incentive/hr to nearest $0.05
+                              </span>
+                            </label>
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 accent-blue-600"
+                                checked={useActual}
+                                onChange={(e) => setUseActual(e.target.checked)}
+                              />
+                              <span className="text-[11px] text-slate-700">
+                                Use Actual section
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              <div
+                className={`bg-white shadow-sm border border-slate-200 rounded-2xl p-[0.825rem] border-t-4 ${
+                  useActual ? "opacity-100" : "opacity-50"
+                }`}
+                aria-label="Actual inputs"
+              >
+                <div className="flex items-center justify-between mb-[0.55rem]">
+                  <h2 className="text-[11px] font-semibold uppercase font-semibold">
+                    Actual
+                  </h2>
+                  <span className="text-xs text-blue-700 bg-blue-50 border px-2 py-0.5 rounded">
+                    Optional
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 mb-[0.275rem]">
+                  Exactly one input is active at a time. Focusing/typing
+                  activates it and disables the other two until cleared.
+                </p>
+                <div className="space-y-[0.825rem] font-semibold text-[11px] text-slate-700">
+                  <NumberInput
+                    key={actualSource === null ? "pct-cleared" : "pct-active"}
+                    label="Actual % to Goal"
+                    labelClassName="text-[11px] text-slate-700"
+                    disabled={
+                      !useActual ||
+                      (actualSource !== null && actualSource !== "pct")
+                    }
+                    suffix="%"
+                    allowEmpty
+                    value={
+                      actualSource === "pct"
+                        ? actualPctInput
+                        : (actualComputed.pct as any)
+                    }
+                    onFocus={() => {
+                      setActualSource("pct");
+                      setActualError("");
+                      setActualNote("");
+                    }}
+                    onChange={(v) => {
+                      setActualPctInput(v as any);
+                      setActualSource("pct");
+                    }}
+                    step="0.01"
+                    ariaLabel="Actual Percent to Goal"
+                    helper={`Type current % to goal. We'll compute NRPMH and Hourly from the table. Out-of-range values are clamped to [Min, Max].`}
+                    isPercent={true}
+                  />
+                  <NumberInput
+                    key={
+                      actualSource === null ? "nrpmh-cleared" : "nrpmh-active"
+                    }
+                    label="Acutal NRPMH"
+                    labelClassName="text-[11px] text-slate-700"
+                    disabled={
+                      !useActual ||
+                      (actualSource !== null && actualSource !== "nrpmh")
+                    }
+                    prefix="$"
+                    allowEmpty
+                    value={
+                      actualSource === "nrpmh"
+                        ? actualNRMPHInput
+                        : actualComputed.nrpmh !== ""
+                        ? Number(actualComputed.nrpmh)
+                        : ""
+                    }
+                    onFocus={() => {
+                      setActualSource("nrpmh");
+                      setActualError("");
+                      setActualNote("");
+                    }}
+                    onChange={(v) => {
+                      setActualNRPMHInput(v as any);
+                      setActualSource("nrpmh");
+                    }}
+                    step="0.01"
+                    ariaLabel="Actual NRPMH"
+                    helper="Type current NRPMH to compute both % to Goal and Hourly from the table."
+                  />
+                  <NumberInput
+                    key={actualSource === null ? "pay-cleared" : "pay-active"}
+                    label="Hourly Pay"
+                    labelClassName="text-[11px] text-slate-700"
+                    disabled={
+                      !useActual ||
+                      (actualSource !== null && actualSource !== "pay")
+                    }
+                    prefix="$"
+                    allowEmpty
+                    value={
+                      actualSource === "pay"
+                        ? hourlyPayInput
+                        : actualComputed.hourly !== ""
+                        ? Number(actualComputed.hourly)
+                        : ""
+                    }
+                    onFocus={() => {
+                      setActualSource("pay");
+                      setActualError("");
+                      setActualNote("");
+                    }}
+                    onChange={(v) => {
+                      setHourlyPayInput(v as any);
+                      setActualSource("pay");
+                    }}
+                    step="0.01"
+                    ariaLabel="Hourly Pay"
+                    helper="Type current hourly rate to compute both % to Goal and NRPMH from the table."
+                  />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(() => {
+                      const hasPct =
+                        typeof actualComputed.pct === "string" &&
+                        actualComputed.pct !== "";
+                      if (!hasPct) return null;
+                      const pctVal = Number(actualComputed.pct);
+                      const isGood = Number.isFinite(pctVal) && pctVal >= 100;
+                      const deltaStr = `${(pctVal - 100).toFixed(2)}%`;
+                      return (
+                        <div
+                          className={`text-xs inline-flex items-center gap-2 px-2 py-1 rounded border ${
+                            isGood
+                              ? "text-green-700 bg-green-50 border-green-200"
+                              : "text-red-700 bg-red-50 border-red-200"
+                          }`}
+                        >
+                          <span>∆ vs 100%:</span>
+                          <strong>{deltaStr}</strong>
+                        </div>
+                      );
+                    })()}
+                    {actualNote ? (
+                      <div className="text-xs text-amber-800 bg-amber-50 border-amber-200 inline-flex items-center gap-2 px-2 py-1 rounded">
+                        {actualNote}
+                      </div>
+                    ) : null}
+                    {actualError ? (
+                      <div className="text-xs text-red-700 bg-red-50 border-red-200 inline-flex items-center gap-2 px-2 py-1 rounded">
+                        {actualError}
+                      </div>
+                    ) : null}
+                    <button
+                      className="h-8 px-3 rounded-lg border-slate-300 text-blue-700 hover:bg-blue-50"
+                      onClick={() => {
+                        setActualSource(null);
+                        setActualPctInput("");
+                        setActualNRPMHInput("");
+                        setHourlyPayInput("");
+                        setActualError("");
+                        setActualNote("");
+                      }}
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm"
+                aria-label="Data View"
+              >
+                <div className="flex items-center justify-between p-2">
+                  <div
+                    className="flex items-center gap-2"
+                    role="tablist"
+                    aria-label="View mode"
+                  >
+                    <div className="inline-flex rounded-xl bg-white ring-1 ring-slate-200 p-0.5">
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={!showChart}
+                        aria-label="Table view"
+                        title="Table"
+                        onClick={() => setShowChart(false)}
+                        className={`${
+                          !showChart
+                            ? "bg-slate-900 text-white"
+                            : "text-slate-700 hover:bg-slate-50"
+                        } px-3 h-8 rounded-lg text-sm font-medium transition`}
+                      >
+                        Table
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={showChart}
+                        aria-label="Graph view"
+                        title="Graph"
+                        onClick={() => setShowChart(true)}
+                        className={`${
+                          showChart
+                            ? "bg-slate-900 text-white"
+                            : "text-slate-700 hover:bg-slate-50"
+                        } px-3 h-8 rounded-lg text-sm font-medium transition`}
+                      >
+                        Graph
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-slate-600">
+                      Showing {Math.min(visibleCount, sortedRows.length)} of{" "}
+                      {sortedRows.length}
+                    </span>
+                    {visibleCount < sortedRows.length && (
+                      <button
+                        className="h-8 px-3 rounded-lg border border-slate-300 text-slate-700 hover:bg-blue-50"
+                        onClick={() =>
+                          setVisibleCount((c) =>
+                            Math.min(c + 100, sortedRows.length)
+                          )
+                        }
+                      >
+                        Load 100 more
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="h-9 w-9 rounded-xl bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-blue-50 grid place-items-center"
+                      onClick={exportCSV}
+                      aria-label="Export CSV"
+                      title="Export CSV"
+                    >
+                      <FileDown className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      className="h-9 w-9 rounded-xl bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-blue-50 grid place-items-center"
+                      onClick={handlePrint}
+                      aria-label="Print"
+                      title="Print"
+                    >
+                      <Printer className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative h-[360px] md:h-[560px]">
+                  <div
+                    className={`absolute inset-0 ${
+                      showChart ? "hidden" : "block"
+                    } p-2 overflow-auto`}
+                  >
+                    <DataTableFrame
+                      columns={columns}
+                      sort={{ key: sortKey, dir: sortKey ? sortDir : null }}
+                      onSortChange={(s) => {
+                        setSortKey(s.key);
+                        setSortDir((s.dir as any) || "asc");
+                      }}
+                    >
+                      <TableBody>
+                        {visibleRows.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={columns.length}
+                              className="py-16 text-slate-500 flex items-center justify-center"
+                            >
+                              No rows yet - inject your content here.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          visibleRows.map((r, i) => (
+                            <TableRow
+                              key={i}
+                              className={
+                                i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                              }
+                            >
+                              <TableCell>{r.percentToGoal}%</TableCell>
+                              <TableCell>{toCurrency(r.netRevHr)}</TableCell>
+                              <TableCell>{toCurrency(r.minWageCol)}</TableCell>
+                              <TableCell>{toCurrency(r.incentiveHr)}</TableCell>
+                              <TableCell>{toCurrency(r.rateHr)}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </DataTableFrame>
+                    {visibleCount < sortedRows.length && (
+                      <div className="p-2 border-t bg-white sticky bottom-0 flex justify-center">
+                        <button
+                          className="h-10 px-4 rounded-lg bg_white border border-slate-300 text-slate-700 hover:bg-blue-50"
+                          onClick={() =>
+                            setVisibleCount((c) =>
+                              Math.min(c + 100, sortedRows.length)
+                            )
+                          }
+                        >
+                          Load 100 more (showing {visibleCount} of{" "}
+                          {sortedRows.length})
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    className={`absolute inset-0 ${
+                      showChart ? "block" : "hidden"
+                    } p-3`}
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={rows}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="percentToGoal"
+                          label={{
+                            value: "% to Goal",
+                            position: "insideBottom",
+                            offset: -5,
+                          }}
+                        />
+                        <YAxis
+                          label={{
+                            value: "$ / hr",
+                            angle: -90,
+                            position: "insideLeft",
+                          }}
+                        />
+                        <Tooltip
+                          formatter={(v: any) => toCurrency(Number(v))}
+                          labelFormatter={(l: any) => `${l}%`}
+                          itemSorter={
+                            ((a: any, b: any) => {
+                              const order: Record<string, number> = {
+                                "Rate/Hr": 0,
+                                "Incentive/Hr": 1,
+                              };
+                              return (
+                                (order[a?.name ?? ""] ?? 99) -
+                                (order[b?.name ?? ""] ?? 99)
+                              );
+                            }) as unknown as (item: any) => string | number
+                          }
+                        />
+                        <Legend />
+                        <Line
+                          type="monotone"
+                          dataKey="rateHr"
+                          name="Rate/Hr"
+                          dot={false}
+                          strokeWidth={2}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="incentiveHr"
+                          name="Incentive/Hr"
+                          dot={false}
+                          strokeDasharray="4 4"
+                        />
+                        {actualPoint && (
+                          <ReferenceDot
+                            x={actualPoint.x}
+                            y={actualPoint.y}
+                            isFront
+                            r={8}
+                            shape={<StarShape color={starColor} />}
+                          />
+                        )}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
