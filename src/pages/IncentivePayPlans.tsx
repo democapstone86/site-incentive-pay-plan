@@ -1193,6 +1193,7 @@ function UIPreview() {
     JSON.parse(JSON.stringify(INITIAL_PLANS))
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -1375,9 +1376,7 @@ function UIPreview() {
         <div className="mb-3">
           <button
             type="button"
-            onClick={() => {
-              if (window.history.length > 1) window.history.back();
-            }}
+            onClick={() => navigate("/")}
             className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-[13px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
             aria-label="Back to last page"
           >
