@@ -75,8 +75,9 @@ function Button({
   );
 }
 
-function NumberInput({
+export function NumberInput({
   label,
+  labelClassName,
   value,
   onChange,
   prefix,
@@ -91,6 +92,7 @@ function NumberInput({
   ...rest
 }: {
   label: string;
+  labelClassName?: string;
   value: number | "";
   onChange: (v: number | "") => void;
   prefix?: string;
@@ -189,7 +191,11 @@ function NumberInput({
   return (
     <label className="block">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-medium">{label}</span>
+        <span
+          className={labelClassName ?? "text-sm font-medium text-slate-700"}
+        >
+          {label}
+        </span>
         {helper ? <InfoTip text={helper} label={label} /> : null}
       </div>
 
@@ -450,7 +456,7 @@ function useTriSort(
   }, [keyExternal, dirExternal]);
 }
 
-function DataTableFrame({
+export function DataTableFrame({
   columns,
   sort,
   onSortChange,
@@ -515,11 +521,11 @@ function DataTableFrame({
   );
 }
 
-function TableBody({ children }: { children: React.ReactNode }) {
+export function TableBody({ children }: { children: React.ReactNode }) {
   return <div role="rowgroup">{children}</div>;
 }
 
-function TableRow({
+export function TableRow({
   children,
   className = "",
 }: {
@@ -537,7 +543,7 @@ function TableRow({
   );
 }
 
-function TableCell({
+export function TableCell({
   children,
   className = "",
   colSpan,
