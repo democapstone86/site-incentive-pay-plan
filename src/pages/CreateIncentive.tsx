@@ -1425,11 +1425,8 @@ export default function CreateIncentivePayPlan() {
                           Save plan as draft?
                         </h3>
                         <p className="mt-2 text-sm text-slate-600">
-                          Are you sure you want to save the{" "}
-                          <span className="font-medium text-slate-800">
-                            {previewPlanName}
-                          </span>{" "}
-                          Incentive Pay Plan as a draft?
+                          Are you sure you want to save this incentive pay plan
+                          as a draft?
                         </p>
                       </div>
 
@@ -1610,7 +1607,7 @@ export default function CreateIncentivePayPlan() {
           <div
             className={
               activeTab === "calculator"
-                ? "grid gap-6 md:grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)]"
+                ? "grid gap-6 lg:grid-cols-3"
                 : "hidden"
             }
           >
@@ -1706,7 +1703,7 @@ export default function CreateIncentivePayPlan() {
               <div className="rounded-2xl  border border-slate-200 bg-white px-4 py-4 shadow-sm">
                 <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                   <span>Applicable combinations</span>
-                  <span className="text-[10px] font-normal normal-case text-slate-400">
+                  <span className="text-[10px] font-normal normal-case text-slate-400 whitespace-nowrap">
                     {appCombinations.length} total • {excludedCount} excluded
                   </span>
                 </div>
@@ -1861,6 +1858,7 @@ export default function CreateIncentivePayPlan() {
               </div>
             </div>
 
+            {/* Site Incentive Pay Plan Calculator */}
             <div className="flex flex-col gap-4">
               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
                 <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
@@ -2004,7 +2002,9 @@ export default function CreateIncentivePayPlan() {
                   </section>
                 </div>
               </div>
+            </div>
 
+            <div className="flex flex-col gap-4">
               <div
                 className={`bg-white shadow-sm border border-slate-200 rounded-2xl p-[0.825rem] border-t-4 ${
                   useActual ? "opacity-100" : "opacity-50"
@@ -2163,212 +2163,212 @@ export default function CreateIncentivePayPlan() {
                   </div>
                 </div>
               </div>
-              <div
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm"
-                aria-label="Data View"
-              >
-                <div className="flex items-center justify-between p-2">
-                  <div
-                    className="flex items-center gap-2"
-                    role="tablist"
-                    aria-label="View mode"
-                  >
-                    <div className="inline-flex rounded-xl bg-white ring-1 ring-slate-200 p-0.5">
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={!showChart}
-                        aria-label="Table view"
-                        title="Table"
-                        onClick={() => setShowChart(false)}
-                        className={`${
-                          !showChart
-                            ? "bg-slate-900 text-white"
-                            : "text-slate-700 hover:bg-slate-50"
-                        } px-3 h-8 rounded-lg text-sm font-medium transition`}
-                      >
-                        Table
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={showChart}
-                        aria-label="Graph view"
-                        title="Graph"
-                        onClick={() => setShowChart(true)}
-                        className={`${
-                          showChart
-                            ? "bg-slate-900 text-white"
-                            : "text-slate-700 hover:bg-slate-50"
-                        } px-3 h-8 rounded-lg text-sm font-medium transition`}
-                      >
-                        Graph
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-600">
-                      Showing {Math.min(visibleCount, sortedRows.length)} of{" "}
-                      {sortedRows.length}
-                    </span>
-                    {visibleCount < sortedRows.length && (
-                      <button
-                        className="h-8 px-3 rounded-lg border border-slate-300 text-slate-700 hover:bg-blue-50"
-                        onClick={() =>
-                          setVisibleCount((c) =>
-                            Math.min(c + 100, sortedRows.length)
-                          )
-                        }
-                      >
-                        Load 100 more
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="h-9 w-9 rounded-xl bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-blue-50 grid place-items-center"
-                      onClick={exportCSV}
-                      aria-label="Export CSV"
-                      title="Export CSV"
-                    >
-                      <FileDown className="h-5 w-5" />
-                    </button>
-                    <button
-                      type="button"
-                      className="h-9 w-9 rounded-xl bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-blue-50 grid place-items-center"
-                      onClick={handlePrint}
-                      aria-label="Print"
-                      title="Print"
-                    >
-                      <Printer className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
+            </div>
+          </div>
 
-                <div className="relative h-[360px] md:h-[560px]">
-                  <div
-                    className={`absolute inset-0 ${
-                      showChart ? "hidden" : "block"
-                    } p-2 overflow-auto`}
+          {/* Table/ Graph */}
+          <div
+            className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm"
+            aria-label="Data View"
+          >
+            <div className="flex items-center justify-between p-2">
+              <div
+                className="flex items-center gap-2"
+                role="tablist"
+                aria-label="View mode"
+              >
+                <div className="inline-flex rounded-xl bg-white ring-1 ring-slate-200 p-0.5">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={!showChart}
+                    aria-label="Table view"
+                    title="Table"
+                    onClick={() => setShowChart(false)}
+                    className={`${
+                      !showChart
+                        ? "bg-slate-900 text-white"
+                        : "text-slate-700 hover:bg-slate-50"
+                    } px-3 h-8 rounded-lg text-sm font-medium transition`}
                   >
-                    <DataTableFrame
-                      columns={columns}
-                      sort={{ key: sortKey, dir: sortKey ? sortDir : null }}
-                      onSortChange={(s) => {
-                        setSortKey(s.key);
-                        setSortDir((s.dir as any) || "asc");
-                      }}
-                    >
-                      <TableBody>
-                        {visibleRows.length === 0 ? (
-                          <TableRow>
-                            <TableCell
-                              colSpan={columns.length}
-                              className="py-16 text-slate-500 flex items-center justify-center"
-                            >
-                              No rows yet - inject your content here.
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          visibleRows.map((r, i) => (
-                            <TableRow
-                              key={i}
-                              className={
-                                i % 2 === 0 ? "bg-white" : "bg-gray-50"
-                              }
-                            >
-                              <TableCell>{r.percentToGoal}%</TableCell>
-                              <TableCell>{toCurrency(r.netRevHr)}</TableCell>
-                              <TableCell>{toCurrency(r.minWageCol)}</TableCell>
-                              <TableCell>{toCurrency(r.incentiveHr)}</TableCell>
-                              <TableCell>{toCurrency(r.rateHr)}</TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </DataTableFrame>
-                    {visibleCount < sortedRows.length && (
-                      <div className="p-2 border-t bg-white sticky bottom-0 flex justify-center">
-                        <button
-                          className="h-10 px-4 rounded-lg bg_white border border-slate-300 text-slate-700 hover:bg-blue-50"
-                          onClick={() =>
-                            setVisibleCount((c) =>
-                              Math.min(c + 100, sortedRows.length)
-                            )
-                          }
-                        >
-                          Load 100 more (showing {visibleCount} of{" "}
-                          {sortedRows.length})
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div
-                    className={`absolute inset-0 ${
-                      showChart ? "block" : "hidden"
-                    } p-3`}
+                    Table
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={showChart}
+                    aria-label="Graph view"
+                    title="Graph"
+                    onClick={() => setShowChart(true)}
+                    className={`${
+                      showChart
+                        ? "bg-slate-900 text-white"
+                        : "text-slate-700 hover:bg-slate-50"
+                    } px-3 h-8 rounded-lg text-sm font-medium transition`}
                   >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={rows}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          dataKey="percentToGoal"
-                          label={{
-                            value: "% to Goal",
-                            position: "insideBottom",
-                            offset: -5,
-                          }}
-                        />
-                        <YAxis
-                          label={{
-                            value: "$ / hr",
-                            angle: -90,
-                            position: "insideLeft",
-                          }}
-                        />
-                        <Tooltip
-                          formatter={(v: any) => toCurrency(Number(v))}
-                          labelFormatter={(l: any) => `${l}%`}
-                          itemSorter={
-                            ((a: any, b: any) => {
-                              const order: Record<string, number> = {
-                                "Rate/Hr": 0,
-                                "Incentive/Hr": 1,
-                              };
-                              return (
-                                (order[a?.name ?? ""] ?? 99) -
-                                (order[b?.name ?? ""] ?? 99)
-                              );
-                            }) as unknown as (item: any) => string | number
-                          }
-                        />
-                        <Legend />
-                        <Line
-                          type="monotone"
-                          dataKey="rateHr"
-                          name="Rate/Hr"
-                          dot={false}
-                          strokeWidth={2}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="incentiveHr"
-                          name="Incentive/Hr"
-                          dot={false}
-                          strokeDasharray="4 4"
-                        />
-                        {actualPoint && (
-                          <ReferenceDot
-                            x={actualPoint.x}
-                            y={actualPoint.y}
-                            isFront
-                            r={8}
-                            shape={<StarShape color={starColor} />}
-                          />
-                        )}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+                    Graph
+                  </button>
                 </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-600">
+                  Showing {Math.min(visibleCount, sortedRows.length)} of{" "}
+                  {sortedRows.length}
+                </span>
+                {visibleCount < sortedRows.length && (
+                  <button
+                    className="h-8 px-3 rounded-lg border border-slate-300 text-slate-700 hover:bg-blue-50"
+                    onClick={() =>
+                      setVisibleCount((c) =>
+                        Math.min(c + 100, sortedRows.length)
+                      )
+                    }
+                  >
+                    Load 100 more
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="h-9 w-9 rounded-xl bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-blue-50 grid place-items-center"
+                  onClick={exportCSV}
+                  aria-label="Export CSV"
+                  title="Export CSV"
+                >
+                  <FileDown className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  className="h-9 w-9 rounded-xl bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-blue-50 grid place-items-center"
+                  onClick={handlePrint}
+                  aria-label="Print"
+                  title="Print"
+                >
+                  <Printer className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="relative h-[360px] md:h-[560px]">
+              <div
+                className={`absolute inset-0 ${
+                  showChart ? "hidden" : "block"
+                } p-2 overflow-auto`}
+              >
+                <DataTableFrame
+                  columns={columns}
+                  sort={{ key: sortKey, dir: sortKey ? sortDir : null }}
+                  onSortChange={(s) => {
+                    setSortKey(s.key);
+                    setSortDir((s.dir as any) || "asc");
+                  }}
+                >
+                  <TableBody>
+                    {visibleRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={columns.length}
+                          className="py-16 text-slate-500 flex items-center justify-center"
+                        >
+                          No rows yet - inject your content here.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      visibleRows.map((r, i) => (
+                        <TableRow
+                          key={i}
+                          className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                        >
+                          <TableCell>{r.percentToGoal}%</TableCell>
+                          <TableCell>{toCurrency(r.netRevHr)}</TableCell>
+                          <TableCell>{toCurrency(r.minWageCol)}</TableCell>
+                          <TableCell>{toCurrency(r.incentiveHr)}</TableCell>
+                          <TableCell>{toCurrency(r.rateHr)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </DataTableFrame>
+                {visibleCount < sortedRows.length && (
+                  <div className="p-2 border-t bg-white sticky bottom-0 flex justify-center">
+                    <button
+                      className="h-10 px-4 rounded-lg bg_white border border-slate-300 text-slate-700 hover:bg-blue-50"
+                      onClick={() =>
+                        setVisibleCount((c) =>
+                          Math.min(c + 100, sortedRows.length)
+                        )
+                      }
+                    >
+                      Load 100 more (showing {visibleCount} of{" "}
+                      {sortedRows.length})
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div
+                className={`absolute inset-0 ${
+                  showChart ? "block" : "hidden"
+                } p-3`}
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={rows}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="percentToGoal"
+                      label={{
+                        value: "% to Goal",
+                        position: "insideBottom",
+                        offset: -5,
+                      }}
+                    />
+                    <YAxis
+                      label={{
+                        value: "$ / hr",
+                        angle: -90,
+                        position: "insideLeft",
+                      }}
+                    />
+                    <Tooltip
+                      formatter={(v: any) => toCurrency(Number(v))}
+                      labelFormatter={(l: any) => `${l}%`}
+                      itemSorter={
+                        ((a: any, b: any) => {
+                          const order: Record<string, number> = {
+                            "Rate/Hr": 0,
+                            "Incentive/Hr": 1,
+                          };
+                          return (
+                            (order[a?.name ?? ""] ?? 99) -
+                            (order[b?.name ?? ""] ?? 99)
+                          );
+                        }) as unknown as (item: any) => string | number
+                      }
+                    />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="rateHr"
+                      name="Rate/Hr"
+                      dot={false}
+                      strokeWidth={2}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="incentiveHr"
+                      name="Incentive/Hr"
+                      dot={false}
+                      strokeDasharray="4 4"
+                    />
+                    {actualPoint && (
+                      <ReferenceDot
+                        x={actualPoint.x}
+                        y={actualPoint.y}
+                        isFront
+                        r={8}
+                        shape={<StarShape color={starColor} />}
+                      />
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
