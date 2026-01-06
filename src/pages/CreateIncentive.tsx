@@ -908,19 +908,45 @@ export default function CreateIncentivePayPlan() {
     dateError =
       "Effective end date cannot be before Effective start date, and Effective start cannot be after Effective end.";
   }
-  let previewStatus = "Pending";
 
-  let previewBadgeClass =
-    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ";
-  if (previewStatus === "Pending") {
-    previewBadgeClass += "border-amber-200 bg-amber-50 text-amber-700";
-  } else if (previewStatus === "In use") {
-    previewBadgeClass += "border-emerald-200 bg-emerald-50 text-emerald-700";
-  } else if (previewStatus === "Not in use") {
-    previewBadgeClass += "border-slate-200 bg-slate-100 text-slate-600";
-  } else if (previewStatus === "Archived") {
-    previewBadgeClass += "border-slate-500 bg-slate-800 text-slate-100";
-  }
+  const canSubmit = Boolean(effectiveStartDate && selectedService);
+
+  const previewStatus = React.useMemo(() => {
+    if (isArchived) return "Archived";
+
+    if (!effectiveStartDate) return "Pending";
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const start = new Date(effectiveStartDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = effectiveEndDate ? new Date(effectiveEndDate) : null;
+
+    if (start > today) return "Pending";
+
+    if (end && end < today) return "Not in use";
+
+    return "In use";
+  }, [effectiveStartDate, effectiveEndDate, isArchived]);
+
+  const previewBadgeClass = React.useMemo(() => {
+    let cls =
+      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ";
+
+    if (previewStatus === "Pending") {
+      cls += "border-amber-200 bg-amber-50 text-amber-700";
+    } else if (previewStatus === "In use") {
+      cls += "border-emerald-200 bg-emerald-50 text-emerald-700";
+    } else if (previewStatus === "Not in use") {
+      cls += "border-slate-200 bg-slate-100 text-slate-600";
+    } else if (previewStatus === "Archived") {
+      cls += "border-slate-500 bg-slate-800 text-slate-100";
+    }
+
+    return cls;
+  }, [previewStatus]);
 
   const duplicateIdsSet = duplicateIds;
 
@@ -1425,11 +1451,8 @@ export default function CreateIncentivePayPlan() {
                           Save plan as draft?
                         </h3>
                         <p className="mt-2 text-sm text-slate-600">
-                          Are you sure you want to save the{" "}
-                          <span className="font-medium text-slate-800">
-                            {previewPlanName}
-                          </span>{" "}
-                          Incentive Pay Plan as a draft?
+                          Are you sure you want to save this incentive pay plan
+                          as a draft?
                         </p>
                       </div>
 
@@ -1472,9 +1495,12 @@ export default function CreateIncentivePayPlan() {
                 )}
               <button
                 type="button"
-                disabled={false}
+                disabled={!canSubmit}
                 className={
-                  "rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500"
+                  "rounded-full px-3 py-1.5 text-xs font-semibold transition shadow-sm " +
+                  (canSubmit
+                    ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                    : "cursor-not-allowed bg-slate-200 text-slate-400")
                 }
               >
                 Submit
@@ -1610,7 +1636,7 @@ export default function CreateIncentivePayPlan() {
           <div
             className={
               activeTab === "calculator"
-                ? "grid gap-6 md:grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)]"
+                ? "grid gap-6 lg:grid-cols-3"
                 : "hidden"
             }
           >
@@ -1706,7 +1732,7 @@ export default function CreateIncentivePayPlan() {
               <div className="rounded-2xl  border border-slate-200 bg-white px-4 py-4 shadow-sm">
                 <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                   <span>Applicable combinations</span>
-                  <span className="text-[10px] font-normal normal-case text-slate-400">
+                  <span className="text-[10px] font-normal normal-case text-slate-400 whitespace-nowrap">
                     {appCombinations.length} total • {excludedCount} excluded
                   </span>
                 </div>
@@ -1861,6 +1887,7 @@ export default function CreateIncentivePayPlan() {
               </div>
             </div>
 
+            {/* Site Incentive Pay Plan Calculator */}
             <div className="flex flex-col gap-4">
               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
                 <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
@@ -2004,7 +2031,9 @@ export default function CreateIncentivePayPlan() {
                   </section>
                 </div>
               </div>
+            </div>
 
+            <div className="flex flex-col gap-4">
               <div
                 className={`bg-white shadow-sm border border-slate-200 rounded-2xl p-[0.825rem] border-t-4 ${
                   useActual ? "opacity-100" : "opacity-50"
@@ -2163,211 +2192,210 @@ export default function CreateIncentivePayPlan() {
                   </div>
                 </div>
               </div>
-              <div
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm"
-                aria-label="Data View"
-              >
-                <div className="flex items-center justify-between p-2">
-                  <div
-                    className="flex items-center gap-2"
-                    role="tablist"
-                    aria-label="View mode"
-                  >
-                    <div className="inline-flex rounded-xl bg-white ring-1 ring-slate-200 p-0.5">
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={!showChart}
-                        aria-label="Table view"
-                        title="Table"
-                        onClick={() => setShowChart(false)}
-                        className={`${
-                          !showChart
-                            ? "bg-slate-900 text-white"
-                            : "text-slate-700 hover:bg-slate-50"
-                        } px-3 h-8 rounded-lg text-sm font-medium transition`}
-                      >
-                        Table
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={showChart}
-                        aria-label="Graph view"
-                        title="Graph"
-                        onClick={() => setShowChart(true)}
-                        className={`${
-                          showChart
-                            ? "bg-slate-900 text-white"
-                            : "text-slate-700 hover:bg-slate-50"
-                        } px-3 h-8 rounded-lg text-sm font-medium transition`}
-                      >
-                        Graph
-                      </button>
-                    </div>
+            </div>
+            {/* Table/ Graph */}
+            <div
+              className="mt-4 lg:col-span-3 mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm"
+              aria-label="Data View"
+            >
+              <div className="flex items-center justify-between p-2">
+                <div
+                  className="flex items-center gap-2"
+                  role="tablist"
+                  aria-label="View mode"
+                >
+                  <div className="inline-flex rounded-xl bg-white ring-1 ring-slate-200 p-0.5">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={!showChart}
+                      aria-label="Table view"
+                      title="Table"
+                      onClick={() => setShowChart(false)}
+                      className={`${
+                        !showChart
+                          ? "bg-slate-900 text-white"
+                          : "text-slate-700 hover:bg-slate-50"
+                      } px-3 h-8 rounded-lg text-sm font-medium transition`}
+                    >
+                      Table
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={showChart}
+                      aria-label="Graph view"
+                      title="Graph"
+                      onClick={() => setShowChart(true)}
+                      className={`${
+                        showChart
+                          ? "bg-slate-900 text-white"
+                          : "text-slate-700 hover:bg-slate-50"
+                      } px-3 h-8 rounded-lg text-sm font-medium transition`}
+                    >
+                      Graph
+                    </button>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-600">
-                      Showing {Math.min(visibleCount, sortedRows.length)} of{" "}
-                      {sortedRows.length}
-                    </span>
-                    {visibleCount < sortedRows.length && (
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-slate-600">
+                    Showing {Math.min(visibleCount, sortedRows.length)} of{" "}
+                    {sortedRows.length}
+                  </span>
+                  {visibleCount < sortedRows.length && (
+                    <button
+                      className="h-8 px-3 rounded-lg border border-slate-300 text-slate-700 hover:bg-blue-50"
+                      onClick={() =>
+                        setVisibleCount((c) =>
+                          Math.min(c + 100, sortedRows.length)
+                        )
+                      }
+                    >
+                      Load 100 more
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="h-9 w-9 rounded-xl bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-blue-50 grid place-items-center"
+                    onClick={exportCSV}
+                    aria-label="Export CSV"
+                    title="Export CSV"
+                  >
+                    <FileDown className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="h-9 w-9 rounded-xl bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-blue-50 grid place-items-center"
+                    onClick={handlePrint}
+                    aria-label="Print"
+                    title="Print"
+                  >
+                    <Printer className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="relative h-[360px] md:h-[560px]">
+                <div
+                  className={`absolute inset-0 ${
+                    showChart ? "hidden" : "block"
+                  } p-2 overflow-auto`}
+                >
+                  <DataTableFrame
+                    columns={columns}
+                    sort={{ key: sortKey, dir: sortKey ? sortDir : null }}
+                    onSortChange={(s) => {
+                      setSortKey(s.key);
+                      setSortDir((s.dir as any) || "asc");
+                    }}
+                  >
+                    <TableBody>
+                      {visibleRows.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={columns.length}
+                            className="py-16 text-slate-500 flex items-center justify-center"
+                          >
+                            No rows yet - inject your content here.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        visibleRows.map((r, i) => (
+                          <TableRow
+                            key={i}
+                            className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                          >
+                            <TableCell>{r.percentToGoal}%</TableCell>
+                            <TableCell>{toCurrency(r.netRevHr)}</TableCell>
+                            <TableCell>{toCurrency(r.minWageCol)}</TableCell>
+                            <TableCell>{toCurrency(r.incentiveHr)}</TableCell>
+                            <TableCell>{toCurrency(r.rateHr)}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </DataTableFrame>
+                  {visibleCount < sortedRows.length && (
+                    <div className="p-2 border-t bg-white sticky bottom-0 flex justify-center">
                       <button
-                        className="h-8 px-3 rounded-lg border border-slate-300 text-slate-700 hover:bg-blue-50"
+                        className="h-10 px-4 rounded-lg bg_white border border-slate-300 text-slate-700 hover:bg-blue-50"
                         onClick={() =>
                           setVisibleCount((c) =>
                             Math.min(c + 100, sortedRows.length)
                           )
                         }
                       >
-                        Load 100 more
+                        Load 100 more (showing {visibleCount} of{" "}
+                        {sortedRows.length})
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      className="h-9 w-9 rounded-xl bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-blue-50 grid place-items-center"
-                      onClick={exportCSV}
-                      aria-label="Export CSV"
-                      title="Export CSV"
-                    >
-                      <FileDown className="h-5 w-5" />
-                    </button>
-                    <button
-                      type="button"
-                      className="h-9 w-9 rounded-xl bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-blue-50 grid place-items-center"
-                      onClick={handlePrint}
-                      aria-label="Print"
-                      title="Print"
-                    >
-                      <Printer className="h-5 w-5" />
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
-
-                <div className="relative h-[360px] md:h-[560px]">
-                  <div
-                    className={`absolute inset-0 ${
-                      showChart ? "hidden" : "block"
-                    } p-2 overflow-auto`}
-                  >
-                    <DataTableFrame
-                      columns={columns}
-                      sort={{ key: sortKey, dir: sortKey ? sortDir : null }}
-                      onSortChange={(s) => {
-                        setSortKey(s.key);
-                        setSortDir((s.dir as any) || "asc");
-                      }}
-                    >
-                      <TableBody>
-                        {visibleRows.length === 0 ? (
-                          <TableRow>
-                            <TableCell
-                              colSpan={columns.length}
-                              className="py-16 text-slate-500 flex items-center justify-center"
-                            >
-                              No rows yet - inject your content here.
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          visibleRows.map((r, i) => (
-                            <TableRow
-                              key={i}
-                              className={
-                                i % 2 === 0 ? "bg-white" : "bg-gray-50"
-                              }
-                            >
-                              <TableCell>{r.percentToGoal}%</TableCell>
-                              <TableCell>{toCurrency(r.netRevHr)}</TableCell>
-                              <TableCell>{toCurrency(r.minWageCol)}</TableCell>
-                              <TableCell>{toCurrency(r.incentiveHr)}</TableCell>
-                              <TableCell>{toCurrency(r.rateHr)}</TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </DataTableFrame>
-                    {visibleCount < sortedRows.length && (
-                      <div className="p-2 border-t bg-white sticky bottom-0 flex justify-center">
-                        <button
-                          className="h-10 px-4 rounded-lg bg_white border border-slate-300 text-slate-700 hover:bg-blue-50"
-                          onClick={() =>
-                            setVisibleCount((c) =>
-                              Math.min(c + 100, sortedRows.length)
-                            )
-                          }
-                        >
-                          Load 100 more (showing {visibleCount} of{" "}
-                          {sortedRows.length})
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div
-                    className={`absolute inset-0 ${
-                      showChart ? "block" : "hidden"
-                    } p-3`}
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={rows}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          dataKey="percentToGoal"
-                          label={{
-                            value: "% to Goal",
-                            position: "insideBottom",
-                            offset: -5,
-                          }}
+                <div
+                  className={`absolute inset-0 ${
+                    showChart ? "block" : "hidden"
+                  } p-3`}
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={rows}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="percentToGoal"
+                        label={{
+                          value: "% to Goal",
+                          position: "insideBottom",
+                          offset: -5,
+                        }}
+                      />
+                      <YAxis
+                        label={{
+                          value: "$ / hr",
+                          angle: -90,
+                          position: "insideLeft",
+                        }}
+                      />
+                      <Tooltip
+                        formatter={(v: any) => toCurrency(Number(v))}
+                        labelFormatter={(l: any) => `${l}%`}
+                        itemSorter={
+                          ((a: any, b: any) => {
+                            const order: Record<string, number> = {
+                              "Rate/Hr": 0,
+                              "Incentive/Hr": 1,
+                            };
+                            return (
+                              (order[a?.name ?? ""] ?? 99) -
+                              (order[b?.name ?? ""] ?? 99)
+                            );
+                          }) as unknown as (item: any) => string | number
+                        }
+                      />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="rateHr"
+                        name="Rate/Hr"
+                        dot={false}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="incentiveHr"
+                        name="Incentive/Hr"
+                        dot={false}
+                        strokeDasharray="4 4"
+                      />
+                      {actualPoint && (
+                        <ReferenceDot
+                          x={actualPoint.x}
+                          y={actualPoint.y}
+                          isFront
+                          r={8}
+                          shape={<StarShape color={starColor} />}
                         />
-                        <YAxis
-                          label={{
-                            value: "$ / hr",
-                            angle: -90,
-                            position: "insideLeft",
-                          }}
-                        />
-                        <Tooltip
-                          formatter={(v: any) => toCurrency(Number(v))}
-                          labelFormatter={(l: any) => `${l}%`}
-                          itemSorter={
-                            ((a: any, b: any) => {
-                              const order: Record<string, number> = {
-                                "Rate/Hr": 0,
-                                "Incentive/Hr": 1,
-                              };
-                              return (
-                                (order[a?.name ?? ""] ?? 99) -
-                                (order[b?.name ?? ""] ?? 99)
-                              );
-                            }) as unknown as (item: any) => string | number
-                          }
-                        />
-                        <Legend />
-                        <Line
-                          type="monotone"
-                          dataKey="rateHr"
-                          name="Rate/Hr"
-                          dot={false}
-                          strokeWidth={2}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="incentiveHr"
-                          name="Incentive/Hr"
-                          dot={false}
-                          strokeDasharray="4 4"
-                        />
-                        {actualPoint && (
-                          <ReferenceDot
-                            x={actualPoint.x}
-                            y={actualPoint.y}
-                            isFront
-                            r={8}
-                            shape={<StarShape color={starColor} />}
-                          />
-                        )}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+                      )}
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </div>
