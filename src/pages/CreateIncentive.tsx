@@ -908,19 +908,43 @@ export default function CreateIncentivePayPlan() {
     dateError =
       "Effective end date cannot be before Effective start date, and Effective start cannot be after Effective end.";
   }
-  let previewStatus = "Pending";
 
-  let previewBadgeClass =
-    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ";
-  if (previewStatus === "Pending") {
-    previewBadgeClass += "border-amber-200 bg-amber-50 text-amber-700";
-  } else if (previewStatus === "In use") {
-    previewBadgeClass += "border-emerald-200 bg-emerald-50 text-emerald-700";
-  } else if (previewStatus === "Not in use") {
-    previewBadgeClass += "border-slate-200 bg-slate-100 text-slate-600";
-  } else if (previewStatus === "Archived") {
-    previewBadgeClass += "border-slate-500 bg-slate-800 text-slate-100";
-  }
+  const previewStatus = React.useMemo(() => {
+    if (isArchived) return "Archived";
+
+    if (!effectiveStartDate) return "Pending";
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const start = new Date(effectiveStartDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = effectiveEndDate ? new Date(effectiveEndDate) : null;
+
+    if (start > today) return "Pending";
+
+    if (end && end < today) return "Not in use";
+
+    return "In use";
+  }, [effectiveStartDate, effectiveEndDate, isArchived]);
+
+  const previewBadgeClass = React.useMemo(() => {
+    let cls =
+      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ";
+
+    if (previewStatus === "Pending") {
+      cls += "border-amber-200 bg-amber-50 text-amber-700";
+    } else if (previewStatus === "In use") {
+      cls += "border-emerald-200 bg-emerald-50 text-emerald-700";
+    } else if (previewStatus === "Not in use") {
+      cls += "border-slate-200 bg-slate-100 text-slate-600";
+    } else if (previewStatus === "Archived") {
+      cls += "border-slate-500 bg-slate-800 text-slate-100";
+    }
+
+    return cls;
+  }, [previewStatus]);
 
   const duplicateIdsSet = duplicateIds;
 
