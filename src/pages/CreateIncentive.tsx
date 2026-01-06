@@ -909,6 +909,8 @@ export default function CreateIncentivePayPlan() {
       "Effective end date cannot be before Effective start date, and Effective start cannot be after Effective end.";
   }
 
+  const canSubmit = Boolean(effectiveStartDate && selectedService);
+
   const previewStatus = React.useMemo(() => {
     if (isArchived) return "Archived";
 
@@ -1493,9 +1495,12 @@ export default function CreateIncentivePayPlan() {
                 )}
               <button
                 type="button"
-                disabled={false}
+                disabled={!canSubmit}
                 className={
-                  "rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500"
+                  "rounded-full px-3 py-1.5 text-xs font-semibold transition shadow-sm " +
+                  (canSubmit
+                    ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                    : "cursor-not-allowed bg-slate-200 text-slate-400")
                 }
               >
                 Submit
