@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
   createDraft,
-  getDraft,
+  getDraftsBySite,
   updateDraft,
   submitDraft,
 } from "./incentive.controller.js";
@@ -9,7 +9,7 @@ import {
 const router = Router();
 
 router.post("/draft", createDraft);
-router.get("/draft/:id", getDraft);
+router.get("/draft", getDraftsBySite);
 router.patch("/draft/:id", updateDraft);
 router.post("/submit/:id", submitDraft);
 
