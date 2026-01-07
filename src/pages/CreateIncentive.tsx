@@ -794,6 +794,7 @@ export default function CreateIncentivePayPlan() {
       effectiveEndDate,
       isArchived,
       appCombinations,
+      previewPlanName,
     };
   }, [
     selectedService,
@@ -807,6 +808,7 @@ export default function CreateIncentivePayPlan() {
     effectiveEndDate,
     isArchived,
     appCombinations,
+    previewPlanName,
   ]);
 
   React.useEffect(() => {
@@ -1306,6 +1308,10 @@ export default function CreateIncentivePayPlan() {
 
       const savedDraft = await res.json();
       setDraftId(savedDraft._id);
+
+      navigate("/incentive-pay-plans", {
+        state: { siteId },
+      });
 
       console.log("✅ Draft saved to MongoDB:", savedDraft);
     } catch (err) {
