@@ -228,6 +228,8 @@ export type Plan = {
   inUse?: boolean;
   startDate?: string;
   endDate?: string | null;
+
+  isArchived?: boolean;
 };
 
 export function computeKPI(list: Plan[], today: Date) {
@@ -243,7 +245,7 @@ export function computeKPI(list: Plan[], today: Date) {
     const expired = Boolean(
       p.endDate && isOnOrBeforeToday(p.endDate || undefined)
     );
-    const isArchived = p.status === "Archived";
+    const isArchived = p.status === "Archived" || p.isArchived === true;
     const isPending = p.status === "Pending" || (!startOk && !isArchived);
     const isActiveLabel = p.status === "Active";
 
