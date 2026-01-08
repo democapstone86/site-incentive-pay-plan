@@ -102,18 +102,24 @@ const INITIAL_PLANS: Record<string, any[]> = {
   ],
 };
 
-const STATUS_BADGE = {
-  Active: `${DS.badge} bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200`,
-  Pending: `${DS.badge} bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200`,
-  Inactive: `${DS.badge} bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200`,
-  Archived: `${DS.badge} bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-200`,
-} as const;
+const STATUS_BADGE: Record<DisplayStatus, string> = {
+  IN_USE: `${DS.badge} bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200`,
 
-const STATUS_ORDER: Record<string, number> = {
-  Active: 0,
-  Pending: 1,
-  Inactive: 2,
-  Archived: 3,
+  ACTIVE_NOT_IN_USE: `${DS.badge} bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200`,
+
+  PENDING: `${DS.badge} bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200`,
+
+  INACTIVE: `${DS.badge} bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200`,
+
+  ARCHIVED: `${DS.badge} bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-200`,
+};
+
+const STATUS_ORDER: Record<DisplayStatus, number> = {
+  IN_USE: 0,
+  ACTIVE_NOT_IN_USE: 1,
+  PENDING: 2,
+  INACTIVE: 3,
+  ARCHIVED: 4,
 };
 
 const cx = (...xs: Array<string | false | null | undefined>) =>
@@ -191,6 +197,28 @@ function isPendingPlan(p: any) {
   const startOk = isOnOrBeforeToday(p.startDate);
   const isArchived = p.status === "Archived";
   return p.status === "Pending" || (!startOk && !isArchived);
+}
+
+type DisplayStatus =
+  | "IN_USE"
+  | "ACTIVE_NOT_IN_USE"
+  | "PENDING"
+  | "INACTIVE"
+  | "ARCHIVED";
+
+function getDisplayStatus(p: any): DisplayStatus {
+  const startOk = isOnOrBeforeToday(p.startDate);
+  const expired = Boolean(p.endDate && isOnOrBeforeToday(p.endDate));
+
+  if (p.isArchived) return "ARCHIVED";
+
+  if (p.status === "Archived") return "ARCHIVED";
+  if (!startOk) return "PENDING";
+  if (expired) return "INACTIVE";
+  if (p.status === "Pending") return "PENDING";
+  if (p.status === "Active" && p.inUse) return "IN_USE";
+
+  return "ACTIVE_NOT_IN_USE";
 }
 
 export type Plan = {
@@ -842,24 +870,26 @@ const DataTable = memo(function DataTable({
                     />
                   </td>
                   {visibleCols.map((col) => {
-                    if (col.id === "status")
+                    if (col.id === "status") {
+                      const displayStatus = getDisplayStatus(r);
+
+                      const LABELS: Record<DisplayStatus, string> = {
+                        IN_USE: "In Use",
+                        ACTIVE_NOT_IN_USE: "Active (Not In Use)",
+                        PENDING: "Pending",
+                        INACTIVE: "Inactive",
+                        ARCHIVED: "Archived",
+                      };
+
                       return (
                         <td key={col.id} className={DS.table.td}>
-                          <span
-                            className={
-                              STATUS_BADGE[
-                                r.status as keyof typeof STATUS_BADGE
-                              ]
-                            }
-                          >
-                            {r.status === "Active"
-                              ? r.inUse
-                                ? "In Use"
-                                : "Active not in Use"
-                              : r.status}
+                          <span className={STATUS_BADGE[displayStatus]}>
+                            {LABELS[displayStatus]}
                           </span>
                         </td>
                       );
+                    }
+
                     if (col.id === "name")
                       return (
                         <td
@@ -1212,6 +1242,7 @@ function UIPreview() {
           startDate: d.payload?.effectiveStartDate,
           endDate: d.payload?.effectiveEndDate,
           inUse: d.status === "IN_USE",
+          isArchived: Boolean(d.payload?.isArchived),
           __isDraft: true,
         }));
 
@@ -1336,8 +1367,8 @@ function UIPreview() {
       let va = a[sortKey];
       let vb = b[sortKey];
       if (sortKey === "status") {
-        va = STATUS_ORDER[a.status];
-        vb = STATUS_ORDER[b.status];
+        va = STATUS_ORDER[getDisplayStatus(a)];
+        vb = STATUS_ORDER[getDisplayStatus(b)];
       } else if (sortKey === "services") {
         va = Number(a.services);
         vb = Number(b.services);
