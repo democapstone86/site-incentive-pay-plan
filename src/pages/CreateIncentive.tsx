@@ -795,6 +795,7 @@ export default function CreateIncentivePayPlan() {
       isArchived,
       appCombinations,
       previewPlanName,
+      serviceCount: linkedServices.length,
     };
   }, [
     selectedService,
