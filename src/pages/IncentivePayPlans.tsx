@@ -1239,8 +1239,12 @@ function UIPreview() {
           id: d._id,
           name: d.name,
           status: d.status === "IN_USE" ? "Active" : d.status,
-          services: 0,
-          revenueType: "Draft",
+          services:
+            d.payload?.serviceCount ?? d.payload?.linkedServices?.length ?? 0,
+          revenueType:
+            d.payload?.activeRevenueName ??
+            d.payload?.linkedRevenues?.[0] ??
+            "Draft",
           startDate: d.payload?.effectiveStartDate,
           endDate: d.payload?.effectiveEndDate,
           inUse: d.status === "IN_USE",
