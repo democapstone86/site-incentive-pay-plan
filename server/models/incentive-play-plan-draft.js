@@ -2,12 +2,21 @@ import mongoose from "mongoose";
 
 const DraftSchema = new mongoose.Schema(
   {
-    siteId: { type: String, required: true },
+    siteId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+
+    name: {
+      type: String,
+      required: true,
+    },
 
     status: {
       type: String,
-      enum: ["DRAFT", "SUBMITTED", "ARCHIVED"],
-      default: "DRAFT",
+      enum: ["PENDING", "IN_USE", "NOT_IN_USE", "ARCHIVED"],
+      default: "PENDING",
     },
 
     payload: {
@@ -15,7 +24,9 @@ const DraftSchema = new mongoose.Schema(
       required: true,
     },
 
-    createdBy: String,
+    createdBy: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

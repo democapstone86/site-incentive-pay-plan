@@ -1,4 +1,5 @@
 import { IncentivePayPlanDraft } from "../../models/incentive-play-plan-draft.js";
+import { computeIncentivePayPlanStatus } from "../../services/incentive-pay-plan-status.js";
 
 export async function createDraft(req, res) {
   const { siteId, payload } = req.body;
@@ -7,32 +8,33 @@ export async function createDraft(req, res) {
     return res.status(400).json({ error: "Missing siteId or payload" });
   }
 
-  const existingDraftCount = await IncentivePayPlanDraft.countDocuments({
-    siteId,
-    status: "DRAFT",
-  });
-
-  // Subject to change
-  if (existingDraftCount >= 5) {
-    return res.status(409).json({
-      error: "Draft limit reached",
-      message: "A maximum of 5 draft incentive pay plans is allowed per site.",
-    });
-  }
+  const status = computeIncentivePayPlanStatus(payload);
 
   const draft = await IncentivePayPlanDraft.create({
-    siteId: req.body.siteId,
-    payload: req.body.payload,
+    siteId,
+    payload,
+    name: payload?.selectedService
+      ? `SITE-${siteId}-${payload.selectedService}-v1.0000`
+      : `SITE-${siteId}-v1.0000`,
+    status,
     createdBy: req.user?.id,
-    status: "DRAFT",
   });
 
   res.status(201).json(draft);
 }
 
-export async function getDraft(req, res) {
-  const draft = await IncentivePayPlanDraft.findById(req.params.id);
-  res.json(draft);
+export async function getDraftsBySite(req, res) {
+  const { siteId } = req.query;
+
+  if (!siteId) {
+    return res.status(400).json({ error: "Missing siteId" });
+  }
+
+  const drafts = await IncentivePayPlanDraft.find({ siteId })
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  res.json(drafts);
 }
 
 export async function updateDraft(req, res) {

@@ -1190,6 +1190,41 @@ function ColumnsModal({
 
 function UIPreview() {
   const [selectedSite, setSelectedSite] = useState<any>(null);
+
+  useEffect(() => {
+    if (!selectedSite) return;
+
+    async function loadDrafts() {
+      const res = await fetch(
+        `/api/incentive-pay-plan/draft?siteId=${selectedSite.id}`
+      );
+      const drafts = await res.json();
+
+      setPlansBySite((prev) => {
+        const existing = prev[selectedSite.id] || [];
+
+        const draftRows = drafts.map((d: any) => ({
+          id: d._id,
+          name: d.name,
+          status: d.status === "IN_USE" ? "Active" : d.status,
+          services: 0,
+          revenueType: "Draft",
+          startDate: d.payload?.effectiveStartDate,
+          endDate: d.payload?.effectiveEndDate,
+          inUse: d.status === "IN_USE",
+          __isDraft: true,
+        }));
+
+        return {
+          ...prev,
+          [selectedSite.id]: [...existing, ...draftRows],
+        };
+      });
+    }
+
+    loadDrafts();
+  }, [selectedSite]);
+
   const [plansBySite, setPlansBySite] = useState<Record<string, any[]>>(() =>
     JSON.parse(JSON.stringify(INITIAL_PLANS))
   );
