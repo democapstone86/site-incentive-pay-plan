@@ -1649,254 +1649,6 @@ export default function CreateIncentivePayPlan() {
             <div className="flex flex-col gap-4">
               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
                 <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  Effective start dates
-                </div>
-                <div className="space-y-3 text-[11px] text-slate-700">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-semibold text-slate-500">
-                        Effective start
-                        <span className="ml-0.5 text-[11px] font-semibold text-red-500">
-                          *
-                        </span>
-                      </label>
-                      <input
-                        type="date"
-                        value={effectiveStartDate}
-                        onChange={(e) => setEffectiveStartDate(e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-medium text-slate-600">
-                        Effective end
-                        <span className="ml-1 text-[10px] font-normal text-slate-400">
-                          (optional)
-                        </span>
-                      </label>
-                      <input
-                        type="date"
-                        value={effectiveEndDate}
-                        onChange={(e) => setEffectiveEndDate(e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="text-[11px] font-medium text-slate-600">
-                      Preview status:
-                    </span>
-                    <span className={previewBadgeClass}>{previewStatus}</span>
-                  </div>
-
-                  <label className="mt-1 flex items-center gap-2  text-[10px] text-slate-600">
-                    <input
-                      type="checkbox"
-                      checked={isArchived}
-                      onChange={(e) => setIsArchived(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-sky-600"
-                    />
-                    <span>Mark plan as archived (preview)</span>
-                  </label>
-
-                  <p className="mt-1 text-[10px] text-slate-400">
-                    Preview Status shows how this incentive plan would be
-                    treated based on the effective start/end dates and archive
-                    flag.
-                  </p>
-                  <ul className="mt-1 space-y-0.5 text-[10px] text-slate-400">
-                    <li>
-                      <span className="font-semibold">Pending</span> – Plan
-                      hasn’t started yet (no start date or start date is in the
-                      future).
-                    </li>
-                    <li>
-                      <span className="font-semibold">In use</span> – Plan is
-                      currently active between its start and end dates.
-                    </li>
-                    <li>
-                      <span className="font-semibold">Not in use</span> – Plan’s
-                      end date is in the past.
-                    </li>
-                    <li>
-                      <span className="font-semibold">Archived</span> – Plan is
-                      explicitly marked as archived, regardless of dates.
-                    </li>
-                  </ul>
-                  <p className="mt-1 text-[10px] text-slate-400">
-                    Effective start is required. Leave Effective end blank if
-                    the plan does not yet have an end date.
-                  </p>
-                  {dateError && (
-                    <p className="mt-1 text-[10px] text-red-500">{dateError}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-2xl  border border-slate-200 bg-white px-4 py-4 shadow-sm">
-                <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  <span>Applicable combinations</span>
-                  <span className="text-[10px] font-normal normal-case text-slate-400 whitespace-nowrap">
-                    {appCombinations.length} total • {excludedCount} excluded
-                  </span>
-                </div>
-
-                <div className="mb-3 flex flex-wrap items-center gap-3">
-                  <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px]">
-                    <span className="text-[10px] text-slate-400">🔍</span>
-                    <input
-                      type="text"
-                      value={combinationSearch}
-                      onChange={(e) => setCombinationSearch(e.target.value)}
-                      placeholder="Search by service, revenue, attribute, or work function..."
-                      className="w-full bg-transparent text-xs outline-none placeholder:text-slate-400"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2 text-[11px] text-slate-700">
-                    <button
-                      type="button"
-                      onClick={() => setHideExcludedRows((prev) => !prev)}
-                      className={
-                        "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold " +
-                        (hideExcludedRows
-                          ? "border-slate-800 bg-slate-900 text-white"
-                          : "border-slate-200 bg-white text-slate-700")
-                      }
-                    >
-                      {hideExcludedRows
-                        ? "Hide excluded rows"
-                        : "Show excluded rows"}
-                    </button>
-                    {excludedCount > 0 && (
-                      <span className="text-[10px] text-slate-400">
-                        {excludedCount} row
-                        {excludedCount !== 1 ? "s" : ""} excluded from the list.
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {appCombinations.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-[11px] text-slate-400">
-                    No applicable combinations yet. Link at least one Service,
-                    Revenue, Attribute, and Work Function in the Details tab to
-                    populate this table.
-                  </div>
-                ) : displayedCombinations.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-[11px] text-slate-400">
-                    No combinations match your current filters.
-                  </div>
-                ) : (
-                  <div className="mb-3 overflow-x-auto rounded-xl border border-slate-100">
-                    <table className="min-w-full text-left text-[11px]">
-                      <thead className="bg-slate-50 text-[11px] font-semibold text-slate-500">
-                        <tr>
-                          <th className="px-3 py-2">Services</th>
-                          <th className="px-3 py-2">Revenue</th>
-                          <th className="px-3 py-2">Attributes</th>
-                          <th className="px-3 py-2">Work Functions</th>
-                          <th className="w-20 px-3 py-2 text-center">
-                            Exclude
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-slate-700">
-                        {displayedCombinations.map((row) => {
-                          const isDuplicate = duplicateIdsSet.has(row.id);
-                          return (
-                            <tr
-                              key={row.id}
-                              className={
-                                "hover:bg-slate-50/60 " +
-                                (isDuplicate ? "bg-red-50/40" : "")
-                              }
-                            >
-                              <td className="px-3 py-2 align-middle">
-                                <div className="flex flex-col gap-1">
-                                  <span className="text-[11px] leading-snug line-clamp-2">
-                                    {truncateText(row.service)}
-                                  </span>
-                                  {row.excluded && (
-                                    <span className="inline-flex w-fit items-center rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-600">
-                                      Excluded
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-3 py-2 align-middle">
-                                <span className="text-[11px] leading-snug line-clamp-2">
-                                  {truncateText(row.revenueType)}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2 align-middle">
-                                <span className="text-[11px] leading-snug line-clamp-2">
-                                  {truncateText(row.attribute)}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2 align-middle">
-                                <span className="text-[11px] leading-snug line-clamp-2">
-                                  {truncateText(row.workFunction)}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2 align-middle">
-                                <div className="flex items-center justify-center">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setAppCombinations((prev) =>
-                                        prev.map((combo) =>
-                                          combo.id === row.id
-                                            ? {
-                                                ...combo,
-                                                excluded: !combo.excluded,
-                                              }
-                                            : combo
-                                        )
-                                      )
-                                    }
-                                    className={
-                                      "inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-semibold " +
-                                      (row.excluded
-                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
-                                    }
-                                    aria-label={
-                                      row.excluded
-                                        ? "Include this combination"
-                                        : "Exclude this combination"
-                                    }
-                                  >
-                                    <span className="sr-only">
-                                      {row.excluded
-                                        ? "Include combination"
-                                        : "Exclude combination"}
-                                    </span>
-                                    <span
-                                      aria-hidden="true"
-                                      className="text-xs"
-                                    >
-                                      {row.excluded ? "↩︎" : "⛔"}
-                                    </span>
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Site Incentive Pay Plan Calculator */}
-            <div className="flex flex-col gap-4">
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                   Site Incentive Pay Plan Calculator
                 </div>
                 <div className="space-y-3 text-[11px] text-slate-700">
@@ -2039,7 +1791,96 @@ export default function CreateIncentivePayPlan() {
               </div>
             </div>
 
+            {/* Site Incentive Pay Plan Calculator */}
+
             <div className="flex flex-col gap-4">
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  Effective start dates
+                </div>
+                <div className="space-y-3 text-[11px] text-slate-700">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-semibold text-slate-500">
+                        Effective start
+                        <span className="ml-0.5 text-[11px] font-semibold text-red-500">
+                          *
+                        </span>
+                      </label>
+                      <input
+                        type="date"
+                        value={effectiveStartDate}
+                        onChange={(e) => setEffectiveStartDate(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-medium text-slate-600">
+                        Effective end
+                        <span className="ml-1 text-[10px] font-normal text-slate-400">
+                          (optional)
+                        </span>
+                      </label>
+                      <input
+                        type="date"
+                        value={effectiveEndDate}
+                        onChange={(e) => setEffectiveEndDate(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-[11px] font-medium text-slate-600">
+                      Preview status:
+                    </span>
+                    <span className={previewBadgeClass}>{previewStatus}</span>
+                  </div>
+
+                  <label className="mt-1 flex items-center gap-2  text-[10px] text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={isArchived}
+                      onChange={(e) => setIsArchived(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-sky-600"
+                    />
+                    <span>Mark plan as archived (preview)</span>
+                  </label>
+
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Preview Status shows how this incentive plan would be
+                    treated based on the effective start/end dates and archive
+                    flag.
+                  </p>
+                  <ul className="mt-1 space-y-0.5 text-[10px] text-slate-400">
+                    <li>
+                      <span className="font-semibold">Pending</span> – Plan
+                      hasn’t started yet (no start date or start date is in the
+                      future).
+                    </li>
+                    <li>
+                      <span className="font-semibold">In use</span> – Plan is
+                      currently active between its start and end dates.
+                    </li>
+                    <li>
+                      <span className="font-semibold">Not in use</span> – Plan’s
+                      end date is in the past.
+                    </li>
+                    <li>
+                      <span className="font-semibold">Archived</span> – Plan is
+                      explicitly marked as archived, regardless of dates.
+                    </li>
+                  </ul>
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Effective start is required. Leave Effective end blank if
+                    the plan does not yet have an end date.
+                  </p>
+                  {dateError && (
+                    <p className="mt-1 text-[10px] text-red-500">{dateError}</p>
+                  )}
+                </div>
+              </div>
               <div
                 className={`bg-white shadow-sm border border-slate-200 rounded-2xl p-[0.825rem] border-t-4 ${
                   useActual ? "opacity-100" : "opacity-50"
@@ -2199,9 +2040,168 @@ export default function CreateIncentivePayPlan() {
                 </div>
               </div>
             </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="rounded-2xl  border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <span>Applicable combinations</span>
+                  <span className="text-[10px] font-normal normal-case text-slate-400 whitespace-nowrap">
+                    {appCombinations.length} total • {excludedCount} excluded
+                  </span>
+                </div>
+
+                <div className="mb-3 flex flex-wrap items-center gap-3">
+                  <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px]">
+                    <span className="text-[10px] text-slate-400">🔍</span>
+                    <input
+                      type="text"
+                      value={combinationSearch}
+                      onChange={(e) => setCombinationSearch(e.target.value)}
+                      placeholder="Search by service, revenue, attribute, or work function..."
+                      className="w-full bg-transparent text-xs outline-none placeholder:text-slate-400"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[11px] text-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setHideExcludedRows((prev) => !prev)}
+                      className={
+                        "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold " +
+                        (hideExcludedRows
+                          ? "border-slate-800 bg-slate-900 text-white"
+                          : "border-slate-200 bg-white text-slate-700")
+                      }
+                    >
+                      {hideExcludedRows
+                        ? "Hide excluded rows"
+                        : "Show excluded rows"}
+                    </button>
+                    {excludedCount > 0 && (
+                      <span className="text-[10px] text-slate-400">
+                        {excludedCount} row
+                        {excludedCount !== 1 ? "s" : ""} excluded from the list.
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {appCombinations.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-[11px] text-slate-400">
+                    No applicable combinations yet. Link at least one Service,
+                    Revenue, Attribute, and Work Function in the Details tab to
+                    populate this table.
+                  </div>
+                ) : displayedCombinations.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-[11px] text-slate-400">
+                    No combinations match your current filters.
+                  </div>
+                ) : (
+                  <div className="mb-3 overflow-x-auto rounded-xl border border-slate-100">
+                    <table className="min-w-full text-left text-[11px]">
+                      <thead className="bg-slate-50 text-[11px] font-semibold text-slate-500">
+                        <tr>
+                          <th className="px-3 py-2">Services</th>
+                          <th className="px-3 py-2">Revenue</th>
+                          <th className="px-3 py-2">Attributes</th>
+                          <th className="px-3 py-2">Work Functions</th>
+                          <th className="w-20 px-3 py-2 text-center">
+                            Exclude
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {displayedCombinations.map((row) => {
+                          const isDuplicate = duplicateIdsSet.has(row.id);
+                          return (
+                            <tr
+                              key={row.id}
+                              className={
+                                "hover:bg-slate-50/60 " +
+                                (isDuplicate ? "bg-red-50/40" : "")
+                              }
+                            >
+                              <td className="px-3 py-2 align-middle">
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-[11px] leading-snug line-clamp-2">
+                                    {truncateText(row.service)}
+                                  </span>
+                                  {row.excluded && (
+                                    <span className="inline-flex w-fit items-center rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-600">
+                                      Excluded
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 align-middle">
+                                <span className="text-[11px] leading-snug line-clamp-2">
+                                  {truncateText(row.revenueType)}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 align-middle">
+                                <span className="text-[11px] leading-snug line-clamp-2">
+                                  {truncateText(row.attribute)}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 align-middle">
+                                <span className="text-[11px] leading-snug line-clamp-2">
+                                  {truncateText(row.workFunction)}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 align-middle">
+                                <div className="flex items-center justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAppCombinations((prev) =>
+                                        prev.map((combo) =>
+                                          combo.id === row.id
+                                            ? {
+                                                ...combo,
+                                                excluded: !combo.excluded,
+                                              }
+                                            : combo
+                                        )
+                                      )
+                                    }
+                                    className={
+                                      "inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-semibold " +
+                                      (row.excluded
+                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                                    }
+                                    aria-label={
+                                      row.excluded
+                                        ? "Include this combination"
+                                        : "Exclude this combination"
+                                    }
+                                  >
+                                    <span className="sr-only">
+                                      {row.excluded
+                                        ? "Include combination"
+                                        : "Exclude combination"}
+                                    </span>
+                                    <span
+                                      aria-hidden="true"
+                                      className="text-xs"
+                                    >
+                                      {row.excluded ? "↩︎" : "⛔"}
+                                    </span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
             {/* Table/ Graph */}
             <div
-              className="mt-4 lg:col-span-3 mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm"
+              className="mt-4 lg:col-span-2 mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm"
               aria-label="Data View"
             >
               <div className="flex items-center justify-between p-2">
