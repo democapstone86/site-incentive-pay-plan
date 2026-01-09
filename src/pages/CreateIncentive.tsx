@@ -7,6 +7,7 @@ import {
   ColKey,
   ColumnDef,
   DataTableFrame,
+  formatAbbrev,
   TableBody,
   TableCell,
   TableRow,
@@ -2355,6 +2356,7 @@ export default function CreateIncentivePayPlan() {
                         }}
                       />
                       <YAxis
+                        tickFormatter={formatAbbrev}
                         label={{
                           value: "$ / hr",
                           angle: -90,

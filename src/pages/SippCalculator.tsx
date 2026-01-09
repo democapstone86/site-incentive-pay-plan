@@ -568,6 +568,19 @@ export function TableCell({
   );
 }
 
+export const formatAbbrev = (value: number) => {
+  if (!Number.isFinite(value)) return "";
+
+  const abs = Math.abs(value);
+
+  if (abs >= 1e12) return `${(value / 1e12).toFixed(1)}T`;
+  if (abs >= 1e9) return `${(value / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
+  if (abs >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
+
+  return value.toFixed(0);
+};
+
 export default function SippCalculatorPage() {
   const [helpOpen, setHelpOpen] = React.useState(false);
   const [minPercent, setMinPercent] = React.useState<number | "">("");
@@ -1358,6 +1371,7 @@ export default function SippCalculatorPage() {
                     }}
                   />
                   <YAxis
+                    tickFormatter={formatAbbrev}
                     label={{
                       value: "$ / hr",
                       angle: -90,
