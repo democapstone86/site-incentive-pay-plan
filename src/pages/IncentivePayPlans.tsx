@@ -10,6 +10,7 @@ import {
   useEffect,
 } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { AppHeader } from "./SippHomePage";
 
 const DS = {
@@ -34,7 +35,7 @@ const DS = {
   },
 };
 
-const SITES = [
+const MOCK_SITES = [
   { id: "30249", name: "SHAMROCK SACRAMENTO CA" },
   { id: "30321", name: "ALDI MORENO VALLEY CA SANI" },
   { id: "30364", name: "ALBERTS ORGANICS RIVERSIDE CA" },
@@ -145,12 +146,18 @@ function stableSort<T>(arr: T[], cmp: (a: T, b: T) => number) {
     .map((x) => x.v);
 }
 
-function filterSites(query: string) {
+function displayPlanName(name?: string) {
+  if (!name) return "";
+  return name.replace(/^SITE-/, "");
+}
+
+function filterSites(query: string, sites: any[]) {
   const q = String(query || "")
     .trim()
     .toLowerCase();
-  if (!q) return SITES;
-  return SITES.filter(
+  if (!q) return sites;
+
+  return sites.filter(
     (s) => s.id.includes(q) || s.name.toLowerCase().includes(q)
   );
 }
@@ -611,15 +618,18 @@ const KPISummary = memo(function KPISummary({
 });
 
 const SiteSelect = memo(function SiteSelect({
+  sites,
   selectedSite,
   setSelectedSite,
 }: {
+  sites: any[];
   selectedSite: any;
   setSelectedSite: (s: any) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const options = useMemo(() => filterSites(q), [q]);
+  const options = useMemo(() => filterSites(q, sites), [q, sites]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -821,7 +831,7 @@ const DataTable = memo(function DataTable({
             ) : (
               plans.map((r: any, i: number) => (
                 <tr
-                  key={r.id}
+                  key={`${r.id}-${r.status}-${i}`}
                   className={i % 2 ? "bg-white" : "bg-slate-50/40"}
                 >
                   <td className={cx(DS.table.td, "w-10")}>
@@ -901,7 +911,7 @@ const DataTable = memo(function DataTable({
                             "max-w-[40ch] break-words"
                           )}
                         >
-                          {r.name}
+                          {displayPlanName(r.name)}
                         </td>
                       );
                     if (col.id === "services")
@@ -1221,7 +1231,10 @@ function ColumnsModal({
 }
 
 function UIPreview() {
-  const [selectedSite, setSelectedSite] = useState<any>(null);
+  const location = useLocation();
+  const initialSite = location.state?.siteId ?? null;
+  const [selectedSite, setSelectedSite] = useState<any>(initialSite);
+  const [sites, setSites] = React.useState<any[]>(MOCK_SITES);
 
   useEffect(() => {
     if (!selectedSite) return;
@@ -1234,6 +1247,8 @@ function UIPreview() {
 
       setPlansBySite((prev) => {
         const existing = prev[selectedSite.id] || [];
+
+        const nonDrafts = existing.filter((p: any) => !p.__isDraft);
 
         const draftRows = drafts.map((d: any) => ({
           id: d._id,
@@ -1254,13 +1269,35 @@ function UIPreview() {
 
         return {
           ...prev,
-          [selectedSite.id]: [...existing, ...draftRows],
+          [selectedSite.id]: [...nonDrafts, ...draftRows],
         };
       });
     }
 
     loadDrafts();
   }, [selectedSite]);
+
+  useEffect(() => {
+    async function loadSites() {
+      try {
+        const res = await fetch("/api/incentive-pay-plan/sites");
+        if (!res.ok) throw new Error("Failed to load sites");
+
+        const data = await res.json();
+
+        if (Array.isArray(data) && data.length > 0) {
+          setSites(data);
+        } else {
+          setSites(MOCK_SITES);
+        }
+      } catch (err) {
+        console.warn("[SITES] Using mock sites", err);
+        setSites(MOCK_SITES);
+      }
+    }
+
+    loadSites();
+  }, []);
 
   const [plansBySite, setPlansBySite] = useState<Record<string, any[]>>(() =>
     JSON.parse(JSON.stringify(INITIAL_PLANS))
@@ -1435,6 +1472,7 @@ function UIPreview() {
 
         <section className="mt-6 grid gap-4 md:grid-cols-2">
           <SiteSelect
+            sites={sites}
             selectedSite={selectedSite}
             setSelectedSite={setSelectedSite}
           />
