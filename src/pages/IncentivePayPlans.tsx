@@ -9,7 +9,7 @@ import {
   useCallback,
   useEffect,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AppHeader } from "./SippHomePage";
 
 const DS = {
@@ -205,6 +205,10 @@ type DisplayStatus =
   | "PENDING"
   | "INACTIVE"
   | "ARCHIVED";
+
+type UIPreviewRouteState = {
+  siteId?: any;
+};
 
 function getDisplayStatus(p: any): DisplayStatus {
   const startOk = isOnOrBeforeToday(p.startDate);
@@ -1221,6 +1225,10 @@ function ColumnsModal({
 }
 
 function UIPreview() {
+  const location = useLocation() as unknown as Location & {
+    state?: UIPreviewRouteState;
+  };
+
   const [selectedSite, setSelectedSite] = useState<any>(null);
 
   useEffect(() => {
@@ -1235,32 +1243,53 @@ function UIPreview() {
       setPlansBySite((prev) => {
         const existing = prev[selectedSite.id] || [];
 
-        const draftRows = drafts.map((d: any) => ({
-          id: d._id,
-          name: d.name,
-          status: d.status === "IN_USE" ? "Active" : d.status,
-          services:
-            d.payload?.serviceCount ?? d.payload?.linkedServices?.length ?? 0,
-          revenueType:
-            d.payload?.activeRevenueName ??
-            d.payload?.linkedRevenues?.[0] ??
-            "Draft",
-          startDate: d.payload?.effectiveStartDate,
-          endDate: d.payload?.effectiveEndDate,
-          inUse: d.status === "IN_USE",
-          isArchived: Boolean(d.payload?.isArchived),
-          __isDraft: true,
-        }));
+        const byId = new Map<string, any>();
+
+        // keep mock + non-draft plans
+        for (const p of existing) {
+          if (!p.__isDraft) {
+            byId.set(p.id, p);
+          }
+        }
+
+        // overwrite drafts by id
+        for (const d of drafts) {
+          byId.set(d._id, {
+            id: d._id,
+            name: d.name,
+            status: d.status === "IN_USE" ? "Active" : d.status,
+            services:
+              d.payload?.serviceCount ?? d.payload?.linkedServices?.length ?? 0,
+            revenueType:
+              d.payload?.activeRevenueName ??
+              d.payload?.linkedRevenues?.[0] ??
+              "Draft",
+            startDate: d.payload?.effectiveStartDate,
+            endDate: d.payload?.effectiveEndDate,
+            inUse: d.status === "IN_USE",
+            isArchived: Boolean(d.payload?.isArchived),
+            __isDraft: true,
+          });
+        }
 
         return {
           ...prev,
-          [selectedSite.id]: [...existing, ...draftRows],
+          [selectedSite.id]: Array.from(byId.values()),
         };
       });
     }
 
     loadDrafts();
   }, [selectedSite]);
+
+  useEffect(() => {
+    if (location.state?.siteId) {
+      setSelectedSite(location.state.siteId);
+
+      // clear router state so it does not persist
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, []);
 
   const [plansBySite, setPlansBySite] = useState<Record<string, any[]>>(() =>
     JSON.parse(JSON.stringify(INITIAL_PLANS))
