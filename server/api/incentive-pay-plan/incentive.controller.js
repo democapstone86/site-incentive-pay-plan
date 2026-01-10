@@ -23,6 +23,36 @@ export async function createDraft(req, res) {
   res.status(201).json(draft);
 }
 
+export async function getSites(req, res) {
+  try {
+    const sites = await IncentivePayPlanDraft.aggregate([
+      {
+        $match: {
+          siteId: { $exists: true, $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: { $toString: "$siteId" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          id: "$_id",
+          name: "$_id",
+        },
+      },
+      { $sort: { id: 1 } },
+    ]);
+
+    res.json(sites);
+  } catch (err) {
+    console.error("❌ Failed to load sites:", err);
+    res.status(500).json({ message: "Failed to load sites" });
+  }
+}
+
 export async function getDraftsBySite(req, res) {
   const { siteId } = req.query;
 

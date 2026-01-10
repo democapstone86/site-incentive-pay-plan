@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createDraft,
+  getSites,
   getDraftsBySite,
   updateDraft,
   submitDraft,
@@ -8,6 +9,7 @@ import {
 
 const router = Router();
 
+router.get("/sites", getSites);
 router.post("/draft", createDraft);
 router.get("/draft", getDraftsBySite);
 router.patch("/draft/:id", updateDraft);
