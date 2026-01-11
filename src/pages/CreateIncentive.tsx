@@ -770,6 +770,29 @@ export default function CreateIncentivePayPlan() {
     return `${sitePart}${servicePart}-v.10000`;
   }, [siteId?.id, selectedService]);
 
+  const [minPercent, setMinPercent] = React.useState<number | "">("");
+  const [stepPercent, setStepPercent] = React.useState<number | "">("");
+  const [maxPercent, setMaxPercent] = React.useState<number | "">("");
+  const [minWage, setMinWage] = React.useState<number | "">("");
+  const [nrpmh, setNrpmh] = React.useState<number | "">("");
+  const [payAt100, setPayAt100] = React.useState<number | "">("");
+  const [minIncentiveThreshold, setMinIncentiveThreshold] = React.useState<
+    number | ""
+  >("");
+  const [round05, setRound05] = React.useState(false);
+  const [useActual, setUseActual] = React.useState(false);
+  const [actualSource, setActualSource] = React.useState<
+    "nrpmh" | "pay" | "pct" | null
+  >(null);
+  const [actualPctInput, setActualPctInput] = React.useState<number | "">("");
+  const [actualError, setActualError] = React.useState("");
+  const [actualNote, setActualNote] = React.useState("");
+  const [actualNRMPHInput, setActualNRPMHInput] = React.useState<number | "">(
+    ""
+  );
+
+  const [hourlyPayInput, setHourlyPayInput] = React.useState<number | "">("");
+
   const [activeTab, setActiveTab] = React.useState("details");
   const [activeRevenueName, setActiveRevenueName] = React.useState(null);
   const [linkedRevenues, setLinkedRevenues] = React.useState([]);
@@ -785,7 +808,6 @@ export default function CreateIncentivePayPlan() {
   const buildDraftPayload = React.useCallback(() => {
     return {
       selectedService,
-      activeTab,
       activeRevenueName,
       linkedServices,
       linkedRevenues,
@@ -794,13 +816,30 @@ export default function CreateIncentivePayPlan() {
       effectiveStartDate,
       effectiveEndDate,
       isArchived,
-      appCombinations,
       previewPlanName,
-      serviceCount: linkedServices.length,
+
+      calculator: {
+        minPercent,
+        maxPercent,
+        stepPercent,
+        minWage,
+        nrpmh,
+        payAt100,
+        minIncentiveThreshold,
+        round05,
+      },
+
+      actual: {
+        enabled: useActual,
+        source: actualSource,
+        pct: actualPctInput,
+        nrpmh: actualNRMPHInput,
+        hourlyPay: hourlyPayInput,
+      },
+      appCombinations,
     };
   }, [
     selectedService,
-    activeTab,
     activeRevenueName,
     linkedServices,
     linkedRevenues,
@@ -809,8 +848,21 @@ export default function CreateIncentivePayPlan() {
     effectiveStartDate,
     effectiveEndDate,
     isArchived,
-    appCombinations,
     previewPlanName,
+    minPercent,
+    maxPercent,
+    stepPercent,
+    minWage,
+    nrpmh,
+    payAt100,
+    minIncentiveThreshold,
+    round05,
+    useActual,
+    actualSource,
+    actualPctInput,
+    actualNRMPHInput,
+    hourlyPayInput,
+    appCombinations,
   ]);
 
   React.useEffect(() => {
@@ -913,8 +965,6 @@ export default function CreateIncentivePayPlan() {
       "Effective end date cannot be before Effective start date, and Effective start cannot be after Effective end.";
   }
 
-  const canSubmit = Boolean(effectiveStartDate && selectedService);
-
   const previewStatus = React.useMemo(() => {
     if (isArchived) return "Archived";
 
@@ -954,26 +1004,6 @@ export default function CreateIncentivePayPlan() {
 
   const duplicateIdsSet = duplicateIds;
 
-  const [minPercent, setMinPercent] = React.useState<number | "">("");
-  const [stepPercent, setStepPercent] = React.useState<number | "">("");
-  const [maxPercent, setMaxPercent] = React.useState<number | "">("");
-  const [minWage, setMinWage] = React.useState<number | "">("");
-  const [nrpmh, setNrpmh] = React.useState<number | "">("");
-  const [payAt100, setPayAt100] = React.useState<number | "">("");
-  const [minIncentiveThreshold, setMinIncentiveThreshold] = React.useState<
-    number | ""
-  >("");
-  const [round05, setRound05] = React.useState(false);
-  const [useActual, setUseActual] = React.useState(false);
-  const [actualSource, setActualSource] = React.useState<
-    "nrpmh" | "pay" | "pct" | null
-  >(null);
-  const [actualPctInput, setActualPctInput] = React.useState<number | "">("");
-  const [actualError, setActualError] = React.useState("");
-  const [actualNote, setActualNote] = React.useState("");
-  const [actualNRMPHInput, setActualNRPMHInput] = React.useState<number | "">(
-    ""
-  );
   const [showChart, setShowChart] = React.useState(false);
   const [sortKey, setSortKey] = React.useState<ColKey | null>(null);
   const [sortDir, setSortDir] = React.useState<"asc" | "desc">("asc");
@@ -1011,6 +1041,28 @@ export default function CreateIncentivePayPlan() {
     const n = Number(v);
     return Number.isFinite(n) ? n : fallback;
   };
+
+  const detailsValid =
+    selectedService &&
+    effectiveStartDate &&
+    linkedServices.length > 0 &&
+    linkedRevenues.length > 0 &&
+    linkedAttributes.length > 0 &&
+    linkedWorkFunctions.length > 0;
+
+  const calculatorValid =
+    minPercent !== "" &&
+    maxPercent !== "" &&
+    stepPercent !== "" &&
+    minWage !== "" &&
+    nrpmh !== "" &&
+    payAt100 !== "" &&
+    Number(stepPercent) > 0 &&
+    Number(maxPercent) >= Number(minPercent);
+
+  const canSubmit = React.useMemo(() => {
+    return detailsValid && calculatorValid && !dateError;
+  }, [detailsValid, calculatorValid, dateError]);
 
   const rows = React.useMemo<Row[]>(() => {
     const start = parseNum(minPercent);
@@ -1149,8 +1201,6 @@ export default function CreateIncentivePayPlan() {
     const y2 = left.Y2 + t * (right.Y2 - left.Y2);
     return { ok: true as const, xUsed: x, y1, y2, clamped };
   }
-
-  const [hourlyPayInput, setHourlyPayInput] = React.useState<number | "">("");
 
   const actualComputed = React.useMemo(() => {
     if (!useActual || actualSource === null)
