@@ -105,8 +105,6 @@ const INITIAL_PLANS: Record<string, any[]> = {
 const STATUS_BADGE: Record<DisplayStatus, string> = {
   IN_USE: `${DS.badge} bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200`,
 
-  ACTIVE_NOT_IN_USE: `${DS.badge} bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200`,
-
   PENDING: `${DS.badge} bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200`,
 
   INACTIVE: `${DS.badge} bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200`,
@@ -116,10 +114,9 @@ const STATUS_BADGE: Record<DisplayStatus, string> = {
 
 const STATUS_ORDER: Record<DisplayStatus, number> = {
   IN_USE: 0,
-  ACTIVE_NOT_IN_USE: 1,
-  PENDING: 2,
-  INACTIVE: 3,
-  ARCHIVED: 4,
+  PENDING: 1,
+  INACTIVE: 2,
+  ARCHIVED: 3,
 };
 
 const cx = (...xs: Array<string | false | null | undefined>) =>
@@ -199,26 +196,20 @@ function isPendingPlan(p: any) {
   return p.status === "Pending" || (!startOk && !isArchived);
 }
 
-type DisplayStatus =
-  | "IN_USE"
-  | "ACTIVE_NOT_IN_USE"
-  | "PENDING"
-  | "INACTIVE"
-  | "ARCHIVED";
+type DisplayStatus = "IN_USE" | "PENDING" | "INACTIVE" | "ARCHIVED";
 
 function getDisplayStatus(p: any): DisplayStatus {
   const startOk = isOnOrBeforeToday(p.startDate);
   const expired = Boolean(p.endDate && isOnOrBeforeToday(p.endDate));
 
-  if (p.isArchived) return "ARCHIVED";
+  if (p.isArchived || p.status === "Archived") return "ARCHIVED";
+  if (!startOk || p.status === "Pending") return "PENDING";
+  if (expired || p.status === "Inactive") return "INACTIVE";
 
-  if (p.status === "Archived") return "ARCHIVED";
-  if (!startOk) return "PENDING";
-  if (expired) return "INACTIVE";
-  if (p.status === "Pending") return "PENDING";
-  if (p.status === "Active" && p.inUse) return "IN_USE";
+  // 🔑 Any Active plan is now IN_USE
+  if (p.status === "Active") return "IN_USE";
 
-  return "ACTIVE_NOT_IN_USE";
+  return "INACTIVE";
 }
 
 export type Plan = {
@@ -875,7 +866,6 @@ const DataTable = memo(function DataTable({
 
                       const LABELS: Record<DisplayStatus, string> = {
                         IN_USE: "In Use",
-                        ACTIVE_NOT_IN_USE: "Active (Not In Use)",
                         PENDING: "Pending",
                         INACTIVE: "Inactive",
                         ARCHIVED: "Archived",
