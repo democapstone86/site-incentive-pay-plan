@@ -1363,6 +1363,7 @@ export default function SippCalculatorPage() {
                 <LineChart data={rows}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
+                    tickFormatter={formatAbbrev}
                     dataKey="percentToGoal"
                     label={{
                       value: "% to Goal",

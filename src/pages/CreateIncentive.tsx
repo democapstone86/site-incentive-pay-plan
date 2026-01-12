@@ -2349,6 +2349,7 @@ export default function CreateIncentivePayPlan() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis
                         dataKey="percentToGoal"
+                        tickFormatter={formatAbbrev}
                         label={{
                           value: "% to Goal",
                           position: "insideBottom",
