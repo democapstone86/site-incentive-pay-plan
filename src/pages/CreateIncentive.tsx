@@ -1620,9 +1620,8 @@ export default function CreateIncentivePayPlan() {
 
           <div className="pb-3">
             <div className="mb-1 flex items-center gap-2">
-              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
-                Draft
-              </span>
+              <span className={previewBadgeClass}>{previewStatus}</span>
+
               <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">
                 Incentive plan name (preview)
               </label>
