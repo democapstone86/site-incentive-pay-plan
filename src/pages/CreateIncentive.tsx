@@ -1384,7 +1384,7 @@ export default function CreateIncentivePayPlan() {
                 Incentive Pay Plan
               </div>
               <div className="text-sm font-semibold text-slice-900">
-                Create incentive pay plan
+                Create serivice matrix
               </div>
             </div>
 

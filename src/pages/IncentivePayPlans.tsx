@@ -1308,7 +1308,7 @@ function UIPreview() {
     }[]
   >([
     { id: "status", label: "Status", visible: true },
-    { id: "name", label: "Incentive Pay Plan", visible: true },
+    { id: "name", label: "Service Matrix", visible: true },
     { id: "services", label: "Services", visible: true },
     { id: "revenueType", label: "Revenue Type", visible: true },
     { id: "startDate", label: "Effective Start", visible: true },
@@ -1445,7 +1445,7 @@ function UIPreview() {
 
         <section className={cx(DS.card, DS.sectionPad)}>
           <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-            Site Incentive Pay Plans
+            Site Incentive Pay Plan
           </h1>
           <p className="mt-1 text-[13px] text-slate-600">
             List view of site-level incentive pay plans.
