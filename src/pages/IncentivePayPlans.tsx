@@ -216,6 +216,17 @@ function getDisplayStatus(p: any): DisplayStatus {
   return "INACTIVE";
 }
 
+function getDisplayServiceMatrixName(plan: any) {
+  if (!plan?.name) return "";
+
+  // Draft-only presentation rule
+  if (plan.__isDraft) {
+    return plan.name.replace(/^SITE-/, "");
+  }
+
+  return plan.name;
+}
+
 export type Plan = {
   id: string;
   name: string;
@@ -895,7 +906,7 @@ const DataTable = memo(function DataTable({
                             "max-w-[40ch] break-words"
                           )}
                         >
-                          {r.name}
+                          {getDisplayServiceMatrixName(r)}
                         </td>
                       );
                     if (col.id === "services")
