@@ -369,12 +369,20 @@ const ActionsMenu = ({
   onClose,
   onAction,
   canDelete,
+  canView,
+  canAudit,
+  canEdit,
+  canArchive,
 }: {
   open: boolean;
   anchorRect: any;
   onClose: () => void;
   onAction: (key: "view" | "edit" | "audit" | "archive" | "delete") => void;
   canDelete: boolean;
+  canView: boolean;
+  canAudit: boolean;
+  canEdit: boolean;
+  canArchive: boolean;
 }) => {
   const menuRef = React.useRef<HTMLDivElement>(null);
 
@@ -436,7 +444,11 @@ const ActionsMenu = ({
         <ul className="py-1 text-[13px] text-slate-800">
           <li>
             <button
-              className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2"
+              className={cx(
+                "w-full px-3 py-2 text-left flex items-center gap-2",
+                canView ? "hover:bg-slate-50" : "opacity-40 cursor-not-allowed"
+              )}
+              disabled={!canView}
               onClick={() => {
                 onAction("view");
                 onClose();
@@ -459,7 +471,11 @@ const ActionsMenu = ({
           </li>
           <li>
             <button
-              className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2"
+              disabled={!canEdit}
+              className={cx(
+                "w-full px-3 py-2 text-left flex items-center gap-2",
+                canEdit ? "hover:bg-slate-50" : "opacity-40 cursor-not-allowed"
+              )}
               onClick={() => {
                 onAction("edit");
                 onClose();
@@ -482,7 +498,11 @@ const ActionsMenu = ({
           </li>
           <li>
             <button
-              className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2"
+              disabled={!canAudit}
+              className={cx(
+                "w-full px-3 py-2 text-left flex items-center gap-2",
+                canAudit ? "hover:bg-slate-50" : "opacity-40 cursor-not-allowed"
+              )}
               onClick={() => {
                 onAction("audit");
                 onClose();
@@ -505,7 +525,13 @@ const ActionsMenu = ({
           </li>
           <li>
             <button
-              className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2"
+              disabled={!canArchive}
+              className={cx(
+                "w-full px-3 py-2 text-left flex items-center gap-2",
+                canArchive
+                  ? "hover:bg-slate-50"
+                  : "opacity-40 cursor-not-allowed"
+              )}
               onClick={() => {
                 onAction("archive");
                 onClose();
@@ -804,6 +830,7 @@ const DataTable = memo(function DataTable({
   setOpenMenuId,
   columns,
   onDeleteDraft,
+  onViewDraft,
 }: {
   selectedSite: any;
   plans: any[];
@@ -814,6 +841,7 @@ const DataTable = memo(function DataTable({
   setOpenMenuId: (id: string | null) => void;
   columns: { id: string; label: string; visible: boolean }[];
   onDeleteDraft: (draft: any) => void;
+  onViewDraft: (draft: any) => void;
 }) {
   const visibleIds = useMemo(() => plans.map((p: any) => p.id), [plans]);
   const [anchorRect, setAnchorRect] = useState<any>(null);
@@ -926,9 +954,16 @@ const DataTable = memo(function DataTable({
                     <ActionsMenu
                       open={openMenuId === r.id}
                       anchorRect={anchorRect}
+                      canAudit={r.__isDraft}
+                      canEdit={r.__isDraft}
+                      canArchive={r.__isDraft}
                       canDelete={r.__isDraft}
+                      canView={r.__isDraft}
                       onClose={() => setOpenMenuId(null)}
                       onAction={(key) => {
+                        if (key === "view") {
+                          onViewDraft(r);
+                        }
                         if (key === "delete") {
                           onDeleteDraft(r);
                         }
@@ -1437,6 +1472,16 @@ function UIPreview() {
     setSelectedIds(new Set());
   }, [selectedSite, selectedIds]);
 
+  const handleViewDraft = (draft: any) => {
+    navigate("/createIncentive", {
+      state: {
+        mode: "view",
+        draftId: draft.id,
+        siteId: selectedSite,
+      },
+    });
+  };
+
   const deleteDraft = useCallback(
     async (draft: any) => {
       if (!draft.__isDraft) return;
@@ -1575,6 +1620,7 @@ function UIPreview() {
             setOpenMenuId={setOpenMenuId}
             columns={columns}
             onDeleteDraft={deleteDraft}
+            onViewDraft={handleViewDraft}
           />
         </HeaderSortCtx.Provider>
 

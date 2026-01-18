@@ -213,7 +213,12 @@ export function NumberInput({
           inputMode="decimal"
           placeholder={isCurrency ? "Enter dollars" : placeholder}
           step={step}
-          className={`w-full border border-slate-300 rounded-md px-[0.825rem] py-[0.55rem] text-right placeholder:text-left focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full border border-slate-300 rounded-md px-[0.825rem] py-[0.55rem]
+          text-right text-inherit
+          placeholder:text-left
+          disabled:bg-slate-50
+          disabled:cursor-not-allowed
+          focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             prefix ? "pl-6" : ""
           } ${!isCurrency && suffix ? "pr-8" : ""}`}
           value={display}

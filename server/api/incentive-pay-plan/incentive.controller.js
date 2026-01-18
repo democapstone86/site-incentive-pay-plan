@@ -71,6 +71,15 @@ export async function getSites(req, res) {
   }
 }
 
+export async function getDraftById(req, res) {
+  const { id } = req.params;
+
+  const draft = await IncentivePayPlanDraft.findById(id);
+  if (!draft) return res.sendStatus(404);
+
+  res.json(draft);
+}
+
 export async function getDraftsBySite(req, res) {
   const { siteId } = req.query;
 
