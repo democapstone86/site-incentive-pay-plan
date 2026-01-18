@@ -219,8 +219,14 @@ function truncateText(value, maxLength = 80) {
 }
 
 function LinkedSection(props) {
-  const { title, datasetOverride, onRevenueLinkedChange, onLinkedChange } =
-    props;
+  const {
+    title,
+    datasetOverride,
+    onRevenueLinkedChange,
+    onLinkedChange,
+    linkedValues = [],
+    isViewOnly = false,
+  } = props;
 
   const baseConfig = SECTION_CONFIG[title] || DEFAULT_SECTION_CONFIG;
   const sectionConfig = {
@@ -273,12 +279,27 @@ function LinkedSection(props) {
     return sorted;
   }
   React.useEffect(() => {
-    setRows(
-      initLinkableRows(effectiveDataset, {
-        withStatus: sectionConfig.withStatus,
-      })
-    );
-  }, [effectiveDataset, sectionConfig.withStatus]);
+    const baseRows = initLinkableRows(effectiveDataset, {
+      withStatus: sectionConfig.withStatus,
+    });
+
+    if (!linkedValues.length) {
+      setRows(baseRows);
+      setSelectedIds([]);
+      return;
+    }
+
+    const linkedSet = new Set(linkedValues);
+
+    const hydratedRows = baseRows.map((row) => ({
+      ...row,
+      linked: linkedSet.has(row.name),
+    }));
+
+    setRows(hydratedRows);
+
+    setSelectedIds(hydratedRows.filter((r) => r.linked).map((r) => r.id));
+  }, [effectiveDataset, sectionConfig.withStatus, linkedValues]);
 
   const isRowSelected = (id) => selectedIds.includes(id);
   const hasRevenueSelection = title === "Revenue" && selectedIds.length > 0;
@@ -329,12 +350,6 @@ function LinkedSection(props) {
 
   const linkedNames = deriveLinkedNames(rows);
 
-  React.useEffect(() => {
-    if (onLinkedChange) {
-      onLinkedChange(deriveLinkedNames(rows));
-    }
-  }, [rows, onLinkedChange]);
-
   const filteredLinkedRows = filterAndSortByName(linkedRows, linkedSearch);
 
   const visibleLinkedRows = filteredLinkedRows.slice(0, linkedVisibleCount);
@@ -372,21 +387,26 @@ function LinkedSection(props) {
   };
 
   const handleAddSelected = () => {
+    if (isViewOnly) return;
     if (!selectedIds.length) return;
 
     if (title === "Revenue") {
       const idToLink = selectedIds[0];
+
       setRows((current) => {
         const next = current.map((row) => ({
           ...row,
           linked: row.id === idToLink,
         }));
-        if (onRevenueLinkedChange) {
-          const linkedRow = next.find((row) => row.linked);
-          onRevenueLinkedChange(linkedRow ? linkedRow.name : null);
-        }
+
+        const linkedRow = next.find((row) => row.linked);
+
+        onRevenueLinkedChange?.(linkedRow ? linkedRow.name : null);
+        onLinkedChange?.(linkedRow ? [linkedRow.name] : []);
+
         return next;
       });
+
       return;
     }
 
@@ -396,44 +416,69 @@ function LinkedSection(props) {
           const row = current.find((r) => r.id === id);
           return row && row.status === "Active";
         });
+
         if (!activeIds.length) return current;
-        return applyLinkState(current, activeIds, true);
+
+        const next = applyLinkState(current, activeIds, true);
+        onLinkedChange?.(deriveLinkedNames(next));
+
+        return next;
       });
+
       return;
     }
 
-    setRows((current) => applyLinkState(current, selectedIds, true));
+    setRows((current) => {
+      const next = applyLinkState(current, selectedIds, true);
+      onLinkedChange?.(deriveLinkedNames(next));
+      return next;
+    });
   };
 
   const handleRemoveSelected = () => {
+    if (isViewOnly) return;
     if (!selectedIds.length) return;
 
     if (title === "Revenue") {
       setRows((current) => {
         const next = applyLinkState(current, selectedIds, false);
-        if (onRevenueLinkedChange) {
-          const linkedRow = next.find((row) => row.linked);
-          onRevenueLinkedChange(linkedRow ? linkedRow.name : null);
-        }
+
+        const linkedRow = next.find((row) => row.linked);
+
+        onRevenueLinkedChange?.(linkedRow ? linkedRow.name : null);
+        onLinkedChange?.(linkedRow ? [linkedRow.name] : []);
+
         return next;
       });
       return;
     }
-    setRows((current) => applyLinkState(current, selectedIds, false));
+
+    setRows((current) => {
+      const next = applyLinkState(current, selectedIds, false);
+      onLinkedChange?.(deriveLinkedNames(next));
+      return next;
+    });
   };
 
   const handleRemoveLinkedItem = (id) => {
+    if (isViewOnly) return;
     if (title === "Revenue") {
       setRows((current) => {
         const next = applyLinkState(current, [id], false);
-        if (onRevenueLinkedChange) {
-          const linkedRow = next.find((row) => row.linked);
-          onRevenueLinkedChange(linkedRow ? linkedRow.name : null);
-        }
+
+        const linkedRow = next.find((row) => row.linked);
+
+        onRevenueLinkedChange?.(linkedRow ? linkedRow.name : null);
+        onLinkedChange?.(linkedRow ? [linkedRow.name] : []);
+
         return next;
       });
     } else {
-      setRows((current) => applyLinkState(current, [id], false));
+      setRows((current) => {
+        const next = applyLinkState(current, [id], false);
+        onLinkedChange?.(deriveLinkedNames(next));
+        return next;
+      });
     }
     setSelectedIds((prev) => prev.filter((x) => x !== id));
   };
@@ -489,15 +534,28 @@ function LinkedSection(props) {
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={handleAddSelected}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              disabled={isViewOnly}
+              onClick={() => !isViewOnly && handleAddSelected()}
+              className={
+                "rounded-full px-3 py-1.5 text-xs font-medium transition " +
+                (!isViewOnly
+                  ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  : "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400")
+              }
             >
               Add Selected
             </button>
+
             <button
               type="button"
-              onClick={handleRemoveSelected}
-              className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-red-500"
+              disabled={isViewOnly}
+              onClick={() => !isViewOnly && handleRemoveSelected()}
+              className={
+                "rounded-full px-3 py-1.5 text-xs font-semibold shadow-sm transition " +
+                (!isViewOnly
+                  ? "bg-red-600 text-white hover:bg-red-500"
+                  : "cursor-not-allowed bg-slate-100 text-slate-400")
+              }
             >
               Remove Selected
             </button>
@@ -512,10 +570,10 @@ function LinkedSection(props) {
                   <div className="flext items-center justify-center">
                     <input
                       type="checkbox"
+                      disabled={isViewOnly}
                       onChange={
                         title === "Revenue" ? undefined : toggleSelectAll
                       }
-                      disabled={title === "Revenue"}
                       checked={
                         title === "Revenue" ? false : headerCheckboxChecked
                       }
@@ -569,7 +627,7 @@ function LinkedSection(props) {
                       <div className="flex items-center justify-center">
                         <input
                           type="checkbox"
-                          disabled={disabled}
+                          disabled={disabled || isViewOnly}
                           checked={isSelected}
                           onChange={() => toggleSelectRow(row.id)}
                           className={
@@ -698,8 +756,14 @@ function LinkedSection(props) {
               <span className="text-slate-800">{row.name}</span>
               <button
                 type="button"
-                onClick={() => handleRemoveLinkedItem(row.id)}
-                className="text-[11px] font-semibold text-slate-500 hover:text-red-600"
+                disabled={isViewOnly}
+                onClick={() => !isViewOnly && handleRemoveLinkedItem(row.id)}
+                className={
+                  "text-[11px] font-semibold transition " +
+                  (!isViewOnly
+                    ? "text-slate-500 hover:text-red-600"
+                    : "cursor-not-allowed text-slate-400")
+                }
               >
                 Remove
               </button>
@@ -1374,6 +1438,77 @@ export default function CreateIncentivePayPlan() {
     }
   };
 
+  const mode = state?.mode ?? "create";
+  const isViewOnly = mode === "view";
+
+  React.useEffect(() => {
+    if (!state?.draftId) return;
+
+    let cancelled = false;
+
+    async function loadDraft() {
+      try {
+        setIsDraftLoading(true);
+
+        const res = await fetch(
+          `/api/incentive-pay-plan/draft/${state.draftId}`
+        );
+
+        if (!res.ok) {
+          throw new Error("Failed to load draft");
+        }
+
+        const draft = await res.json();
+        const p = draft.payload;
+
+        if (cancelled) return;
+
+        setDraftId(draft._id);
+
+        // ---- DETAILS ----
+        setSelectedService(p.selectedService ?? "");
+        setActiveRevenueName(p.activeRevenueName ?? null);
+        setLinkedServices(p.linkedServices ?? []);
+        setLinkedRevenues(p.linkedRevenues ?? []);
+        setLinkedAttributes(p.linkedAttributes ?? []);
+        setLinkedWorkFunctions(p.linkedWorkFunctions ?? []);
+        setEffectiveStartDate(p.effectiveStartDate ?? "");
+        setEffectiveEndDate(p.effectiveEndDate ?? "");
+        setIsArchived(!!p.isArchived);
+
+        // ---- CALCULATOR ----
+        setMinPercent(p.calculator?.minPercent ?? "");
+        setMaxPercent(p.calculator?.maxPercent ?? "");
+        setStepPercent(p.calculator?.stepPercent ?? "");
+        setMinWage(p.calculator?.minWage ?? "");
+        setNrpmh(p.calculator?.nrpmh ?? "");
+        setPayAt100(p.calculator?.payAt100 ?? "");
+        setMinIncentiveThreshold(p.calculator?.minIncentiveThreshold ?? "");
+        setRound05(!!p.calculator?.round05);
+
+        // ---- ACTUAL ----
+        setUseActual(!!p.actual?.enabled);
+        setActualSource(p.actual?.source ?? null);
+        setActualPctInput(p.actual?.pct ?? "");
+        setActualNRPMHInput(p.actual?.nrpmh ?? "");
+        setHourlyPayInput(p.actual?.hourlyPay ?? "");
+
+        // ---- COMBINATIONS ----
+        setAppCombinations(p.appCombinations ?? []);
+      } catch (err) {
+        console.error("❌ Failed to load draft:", err);
+      } finally {
+        setIsDraftLoading(false);
+      }
+    }
+
+    loadDraft();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [state?.draftId]);
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -1585,8 +1720,17 @@ export default function CreateIncentivePayPlan() {
               </label>
               <div className="relative">
                 <select
-                  className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 outline-none"
+                  className="
+                    w-full appearance-none rounded-lg border border-slate-200
+                    bg-white px-3 py-1.5 text-xs
+                    text-inherit
+                    outline-none
+
+                    disabled:bg-slate-50
+                    disabled:cursor-not-allowed
+                  "
                   value={selectedService}
+                  disabled={isViewOnly}
                   onChange={(e) => setSelectedService(e.target.value)}
                 >
                   <option value="" disabled>
@@ -1622,8 +1766,28 @@ export default function CreateIncentivePayPlan() {
             <div className="mb-1 flex items-center gap-2">
               <span className={previewBadgeClass}>{previewStatus}</span>
 
-              <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">
+              <label className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500 whitespace-nowrap">
                 Incentive plan name (preview)
+                {isViewOnly && (
+                  <button
+                    className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2 rounded-lg"
+                    onClick={() => {}}
+                  >
+                    <svg
+                      className="h-4 w-4 text-slate-600"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
+                    </svg>
+                    <span>Edit</span>
+                  </button>
+                )}
               </label>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700">
@@ -1671,22 +1835,30 @@ export default function CreateIncentivePayPlan() {
           >
             <LinkedSection
               title="Services"
+              linkedValues={linkedServices}
               onLinkedChange={setLinkedServices}
+              isViewOnly={isViewOnly}
             />
             <LinkedSection
               title="Revenue"
               datasetOverride={revenueDataset}
+              linkedValues={linkedRevenues}
+              isViewOnly={isViewOnly}
               onRevenueLinkedChange={setActiveRevenueName}
               onLinkedChange={setLinkedRevenues}
             />
             <LinkedSection
               title="Attributes"
               datasetOverride={dynamicAttributeDatasetLocal}
+              isViewOnly={isViewOnly}
+              linkedValues={linkedAttributes}
               onLinkedChange={setLinkedAttributes}
             />
             <LinkedSection
               title="Work Functions"
               datasetOverride={workFunctionDataset}
+              linkedValues={linkedWorkFunctions}
+              isViewOnly={isViewOnly}
               onLinkedChange={setLinkedWorkFunctions}
             />
           </div>
@@ -1716,6 +1888,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="Min %"
+                              disabled={isViewOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={minPercent}
                               onChange={setMinPercent}
@@ -1730,6 +1903,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="Step %"
+                              disabled={isViewOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={stepPercent}
                               onChange={setStepPercent}
@@ -1744,6 +1918,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="Max %"
+                              disabled={isViewOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={maxPercent}
                               onChange={setMaxPercent}
@@ -1758,6 +1933,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="Min Wage/ Hour"
+                              disabled={isViewOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={minWage}
                               onChange={setMinWage}
@@ -1771,6 +1947,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="100% NRPMH"
+                              disabled={isViewOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={nrpmh}
                               onChange={setNrpmh}
@@ -1787,6 +1964,7 @@ export default function CreateIncentivePayPlan() {
                               label="Pay @ 100%"
                               labelClassName="text-[11px] text-slate-700"
                               value={payAt100}
+                              disabled={isViewOnly}
                               onChange={setPayAt100}
                               prefix="$"
                               suffix="%"
@@ -1801,6 +1979,7 @@ export default function CreateIncentivePayPlan() {
                               label="Minmum Incentive Threshold"
                               labelClassName="text-[11px] text-slate-700"
                               value={minIncentiveThreshold}
+                              disabled={isViewOnly}
                               onChange={setMinIncentiveThreshold}
                               prefix="$"
                               suffix="%"
@@ -1816,6 +1995,7 @@ export default function CreateIncentivePayPlan() {
                                 type="checkbox"
                                 className="w-4 h-4 accent-blue-600"
                                 checked={round05}
+                                disabled={isViewOnly}
                                 onChange={(e) => setRound05(e.target.checked)}
                               />
                               <span className="text-[11px] text-slate-700">
@@ -1825,6 +2005,7 @@ export default function CreateIncentivePayPlan() {
                             <label className="flex items-center gap-2">
                               <input
                                 type="checkbox"
+                                disabled={isViewOnly}
                                 className="w-4 h-4 accent-blue-600"
                                 checked={useActual}
                                 onChange={(e) => setUseActual(e.target.checked)}
@@ -1860,9 +2041,21 @@ export default function CreateIncentivePayPlan() {
                       </label>
                       <input
                         type="date"
+                        disabled={isViewOnly}
                         value={effectiveStartDate}
                         onChange={(e) => setEffectiveStartDate(e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
+                        className="
+                          w-full rounded-lg border border-slate-200
+                          bg-white px-2 py-1.5 text-[11px] text-slate-800
+                          outline-none
+                          focus:border-sky-400 focus:ring-1 focus:ring-sky-200
+
+                          disabled:text-slate-300
+                          disabled:bg-slate-50
+                          disabled:cursor-not-allowed
+                          disabled:focus:ring-0
+                          disabled:focus:border-slate-200
+                        "
                       />
                     </div>
 
@@ -1875,9 +2068,21 @@ export default function CreateIncentivePayPlan() {
                       </label>
                       <input
                         type="date"
+                        disabled={isViewOnly}
                         value={effectiveEndDate}
                         onChange={(e) => setEffectiveEndDate(e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
+                        className="
+                          w-full rounded-lg border border-slate-200
+                          bg-white px-2 py-1.5 text-[11px] text-slate-800
+                          outline-none
+                          focus:border-sky-400 focus:ring-1 focus:ring-sky-200
+
+                          disabled:text-slate-300
+                          disabled:bg-slate-50
+                          disabled:cursor-not-allowed
+                          disabled:focus:ring-0
+                          disabled:focus:border-slate-200
+                        "
                       />
                     </div>
                   </div>
@@ -1893,6 +2098,7 @@ export default function CreateIncentivePayPlan() {
                     <input
                       type="checkbox"
                       checked={isArchived}
+                      disabled={isViewOnly}
                       onChange={(e) => setIsArchived(e.target.checked)}
                       className="h-4 w-4 rounded border-slate-300 text-sky-600"
                     />
@@ -2203,6 +2409,7 @@ export default function CreateIncentivePayPlan() {
                                 <div className="flex items-center justify-center">
                                   <button
                                     type="button"
+                                    disabled={isViewOnly}
                                     onClick={() =>
                                       setAppCombinations((prev) =>
                                         prev.map((combo) =>
@@ -2216,8 +2423,10 @@ export default function CreateIncentivePayPlan() {
                                       )
                                     }
                                     className={
-                                      "inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-semibold " +
-                                      (row.excluded
+                                      "inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-semibold transition " +
+                                      (isViewOnly
+                                        ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300"
+                                        : row.excluded
                                         ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
                                     }
