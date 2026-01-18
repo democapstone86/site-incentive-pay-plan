@@ -368,11 +368,13 @@ const ActionsMenu = ({
   anchorRect,
   onClose,
   onAction,
+  canDelete,
 }: {
   open: boolean;
   anchorRect: any;
   onClose: () => void;
   onAction: (key: "view" | "edit" | "audit" | "archive" | "delete") => void;
+  canDelete: boolean;
 }) => {
   const menuRef = React.useRef<HTMLDivElement>(null);
 
@@ -527,10 +529,18 @@ const ActionsMenu = ({
           </li>
           <li>
             <button
-              className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2"
+              disabled={!canDelete}
+              className={cx(
+                "w-full px-3 py-2 text-left flex items-center gap-2",
+                canDelete
+                  ? "hover:bg-slate-50"
+                  : "opacity-40 cursor-not-allowed"
+              )}
               onClick={() => {
-                onAction("delete");
-                onClose();
+                if (canDelete) {
+                  onAction("delete");
+                  onClose();
+                }
               }}
             >
               <svg
@@ -793,6 +803,7 @@ const DataTable = memo(function DataTable({
   openMenuId,
   setOpenMenuId,
   columns,
+  onDeleteDraft,
 }: {
   selectedSite: any;
   plans: any[];
@@ -802,6 +813,7 @@ const DataTable = memo(function DataTable({
   openMenuId: string | null;
   setOpenMenuId: (id: string | null) => void;
   columns: { id: string; label: string; visible: boolean }[];
+  onDeleteDraft: (draft: any) => void;
 }) {
   const visibleIds = useMemo(() => plans.map((p: any) => p.id), [plans]);
   const [anchorRect, setAnchorRect] = useState<any>(null);
@@ -914,9 +926,12 @@ const DataTable = memo(function DataTable({
                     <ActionsMenu
                       open={openMenuId === r.id}
                       anchorRect={anchorRect}
+                      canDelete={r.__isDraft}
                       onClose={() => setOpenMenuId(null)}
                       onAction={(key) => {
-                        console.log("[ACTION]", key, r);
+                        if (key === "delete") {
+                          onDeleteDraft(r);
+                        }
                       }}
                     />
                   </td>
@@ -1422,6 +1437,26 @@ function UIPreview() {
     setSelectedIds(new Set());
   }, [selectedSite, selectedIds]);
 
+  const deleteDraft = useCallback(
+    async (draft: any) => {
+      if (!draft.__isDraft) return;
+
+      await fetch(`/api/incentive-pay-plan/draft/${draft.id}`, {
+        method: "DELETE",
+      });
+
+      setPlansBySite((prev) => {
+        const siteId = selectedSite.id;
+        const list = prev[siteId] || [];
+        return {
+          ...prev,
+          [siteId]: list.filter((p) => p.id !== draft.id),
+        };
+      });
+    },
+    [selectedSite]
+  );
+
   const plans = useMemo(() => {
     if (!selectedSite) return [] as any[];
     const base = plansBySite[selectedSite.id] || [];
@@ -1539,6 +1574,7 @@ function UIPreview() {
             openMenuId={openMenuId}
             setOpenMenuId={setOpenMenuId}
             columns={columns}
+            onDeleteDraft={deleteDraft}
           />
         </HeaderSortCtx.Provider>
 
