@@ -368,25 +368,46 @@ const ActionsMenu = ({
   anchorRect,
   onClose,
   onAction,
+  canDelete,
 }: {
   open: boolean;
   anchorRect: any;
   onClose: () => void;
-  onAction: (key: "view" | "edit" | "audit" | "archive") => void;
+  onAction: (key: "view" | "edit" | "audit" | "archive" | "delete") => void;
+  canDelete: boolean;
 }) => {
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   useEffect(() => {
     if (!open || !anchorRect) {
       setPos(null);
       return;
     }
+
     const gap = 6;
+    const menuHeight = menuRef.current?.offsetHeight ?? 150;
+
     let left = anchorRect.left;
     const maxLeft = window.innerWidth - 224 - 8;
     left = Math.min(left, maxLeft);
-    const top = Math.min(window.innerHeight - 8, anchorRect.bottom + gap);
+
+    const spaceBelow = window.innerHeight - anchorRect.bottom;
+    const spaceAbove = anchorRect.top;
+
+    let top;
+
+    if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
+      top = anchorRect.top - menuHeight - gap;
+    } else {
+      top = anchorRect.bottom + gap;
+    }
+
+    top = Math.max(8, Math.min(top, window.innerHeight - menuHeight - 8));
+
     setPos({ top, left });
   }, [open, anchorRect]);
+
   useEffect(() => {
     if (!open) return;
     const onScrollOrResize = () => {
@@ -504,6 +525,38 @@ const ActionsMenu = ({
                 <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
               </svg>
               <span>Archive</span>
+            </button>
+          </li>
+          <li>
+            <button
+              disabled={!canDelete}
+              className={cx(
+                "w-full px-3 py-2 text-left flex items-center gap-2",
+                canDelete
+                  ? "hover:bg-slate-50"
+                  : "opacity-40 cursor-not-allowed"
+              )}
+              onClick={() => {
+                if (canDelete) {
+                  onAction("delete");
+                  onClose();
+                }
+              }}
+            >
+              <svg
+                className="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
+              <span>Delete Draft</span>
             </button>
           </li>
         </ul>
@@ -750,6 +803,7 @@ const DataTable = memo(function DataTable({
   openMenuId,
   setOpenMenuId,
   columns,
+  onDeleteDraft,
 }: {
   selectedSite: any;
   plans: any[];
@@ -759,6 +813,7 @@ const DataTable = memo(function DataTable({
   openMenuId: string | null;
   setOpenMenuId: (id: string | null) => void;
   columns: { id: string; label: string; visible: boolean }[];
+  onDeleteDraft: (draft: any) => void;
 }) {
   const visibleIds = useMemo(() => plans.map((p: any) => p.id), [plans]);
   const [anchorRect, setAnchorRect] = useState<any>(null);
@@ -871,9 +926,12 @@ const DataTable = memo(function DataTable({
                     <ActionsMenu
                       open={openMenuId === r.id}
                       anchorRect={anchorRect}
+                      canDelete={r.__isDraft}
                       onClose={() => setOpenMenuId(null)}
                       onAction={(key) => {
-                        console.log("[ACTION]", key, r);
+                        if (key === "delete") {
+                          onDeleteDraft(r);
+                        }
                       }}
                     />
                   </td>
@@ -1379,6 +1437,26 @@ function UIPreview() {
     setSelectedIds(new Set());
   }, [selectedSite, selectedIds]);
 
+  const deleteDraft = useCallback(
+    async (draft: any) => {
+      if (!draft.__isDraft) return;
+
+      await fetch(`/api/incentive-pay-plan/draft/${draft.id}`, {
+        method: "DELETE",
+      });
+
+      setPlansBySite((prev) => {
+        const siteId = selectedSite.id;
+        const list = prev[siteId] || [];
+        return {
+          ...prev,
+          [siteId]: list.filter((p) => p.id !== draft.id),
+        };
+      });
+    },
+    [selectedSite]
+  );
+
   const plans = useMemo(() => {
     if (!selectedSite) return [] as any[];
     const base = plansBySite[selectedSite.id] || [];
@@ -1496,6 +1574,7 @@ function UIPreview() {
             openMenuId={openMenuId}
             setOpenMenuId={setOpenMenuId}
             columns={columns}
+            onDeleteDraft={deleteDraft}
           />
         </HeaderSortCtx.Provider>
 

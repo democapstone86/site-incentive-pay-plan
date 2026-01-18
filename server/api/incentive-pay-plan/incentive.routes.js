@@ -5,6 +5,7 @@ import {
   getDraftsBySite,
   updateDraft,
   submitDraft,
+  deleteDraft,
 } from "./incentive.controller.js";
 
 const router = Router();
@@ -14,5 +15,6 @@ router.post("/draft", createDraft);
 router.get("/draft", getDraftsBySite);
 router.patch("/draft/:id", updateDraft);
 router.post("/submit/:id", submitDraft);
+router.delete("/draft/:id", deleteDraft);
 
 export default router;

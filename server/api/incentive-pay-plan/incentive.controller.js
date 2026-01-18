@@ -23,6 +23,24 @@ export async function createDraft(req, res) {
   res.status(201).json(draft);
 }
 
+export async function deleteDraft(req, res) {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).json({ error: "Missing draft id" });
+  }
+
+  const draft = await IncentivePayPlanDraft.findById(id);
+
+  if (!draft) {
+    return res.sendStatus(404);
+  }
+
+  await IncentivePayPlanDraft.deleteOne({ _id: id });
+
+  res.sendStatus(204);
+}
+
 export async function getSites(req, res) {
   try {
     const sites = await IncentivePayPlanDraft.aggregate([
