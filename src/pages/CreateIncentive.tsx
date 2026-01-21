@@ -144,7 +144,7 @@ function filterRows(rows, query, showInactiveToggle, showInactive) {
   const trimmedQuery = (query || "").trim().toLowerCase();
   if (trimmedQuery) {
     cleaned = cleaned.filter((row) =>
-      row.name.toLowerCase().includes(trimmedQuery)
+      row.name.toLowerCase().includes(trimmedQuery),
     );
   }
 
@@ -245,7 +245,7 @@ function LinkedSection(props) {
   const [rows, setRows] = React.useState(() =>
     initLinkableRows(effectiveDataset, {
       withStatus: sectionConfig.withStatus,
-    })
+    }),
   );
 
   const [search, setSearch] = React.useState("");
@@ -318,7 +318,7 @@ function LinkedSection(props) {
     }
 
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
@@ -337,7 +337,7 @@ function LinkedSection(props) {
     rows,
     search,
     sectionConfig.showInactiveToggle,
-    showInactive
+    showInactive,
   );
 
   const sortedRows = applySort(filteredRows, sortColumn, sortDirection);
@@ -816,13 +816,30 @@ export default function CreateIncentivePayPlan() {
   const navigate = useNavigate();
 
   const [draftId, setDraftId] = React.useState<string | null>(
-    state?.draftId ?? null
+    state?.draftId ?? null,
   );
+
+  const [version, setVersion] = React.useState("v1.0000");
+
+  const [existingDrafts, setExistingDrafts] = React.useState<any[]>([]);
 
   const [isDraftLoading, setIsDraftLoading] = React.useState(false);
 
   const [selectedService, setSelectedService] = React.useState("");
-  const canSaveDraft = Boolean(siteId?.id && selectedService);
+
+  const hasServiceConflict = React.useMemo(() => {
+    if (!selectedService || !siteId?.id) return false;
+
+    return existingDrafts.some(
+      (d) =>
+        String(d.siteId) === String(siteId.id) &&
+        d.payload?.selectedService === selectedService &&
+        d._id !== draftId,
+    );
+  }, [existingDrafts, selectedService, siteId?.id, draftId]);
+
+  const canSaveDraft =
+    Boolean(siteId?.id && selectedService) && !hasServiceConflict;
 
   const [showSaveDraftDialog, setShowSaveDraftDialog] = React.useState(false);
 
@@ -831,8 +848,17 @@ export default function CreateIncentivePayPlan() {
   const previewPlanName = React.useMemo(() => {
     const sitePart = siteId?.id ? `SITE-${siteId.id}` : "SITE-";
     const servicePart = selectedService ? `-${selectedService}` : "";
-    return `${sitePart}${servicePart}-v.10000`;
-  }, [siteId?.id, selectedService]);
+    return `${sitePart}${servicePart}-${version}`;
+  }, [siteId?.id, selectedService, version]);
+
+  React.useEffect(() => {
+    if (!siteId?.id) return;
+
+    fetch(`/api/incentive-pay-plan/drafts?siteId=${siteId.id}`)
+      .then((res) => res.json())
+      .then((data) => setExistingDrafts(data))
+      .catch(() => setExistingDrafts([]));
+  }, [siteId?.id]);
 
   const [minPercent, setMinPercent] = React.useState<number | "">("");
   const [stepPercent, setStepPercent] = React.useState<number | "">("");
@@ -852,7 +878,7 @@ export default function CreateIncentivePayPlan() {
   const [actualError, setActualError] = React.useState("");
   const [actualNote, setActualNote] = React.useState("");
   const [actualNRMPHInput, setActualNRPMHInput] = React.useState<number | "">(
-    ""
+    "",
   );
 
   const [hourlyPayInput, setHourlyPayInput] = React.useState<number | "">("");
@@ -880,8 +906,6 @@ export default function CreateIncentivePayPlan() {
       effectiveStartDate,
       effectiveEndDate,
       isArchived,
-      previewPlanName,
-
       calculator: {
         minPercent,
         maxPercent,
@@ -912,7 +936,6 @@ export default function CreateIncentivePayPlan() {
     effectiveStartDate,
     effectiveEndDate,
     isArchived,
-    previewPlanName,
     minPercent,
     maxPercent,
     stepPercent,
@@ -957,7 +980,7 @@ export default function CreateIncentivePayPlan() {
 
   const revenueDataset = React.useMemo(
     () => (linkedServices.length ? REVENUE_NAMES : []),
-    [linkedServices.length]
+    [linkedServices.length],
   );
 
   const workFunctionDataset = React.useMemo(
@@ -965,12 +988,12 @@ export default function CreateIncentivePayPlan() {
       linkedServices.length && linkedRevenues.length && linkedAttributes.length
         ? WORK_FUNCTION_NAMES
         : [],
-    [linkedServices.length, linkedRevenues.length, linkedAttributes.length]
+    [linkedServices.length, linkedRevenues.length, linkedAttributes.length],
   );
 
   if (hideExcludedRows) {
     displayedCombinations = displayedCombinations.filter(
-      (row) => !row.excluded
+      (row) => !row.excluded,
     );
   }
 
@@ -998,7 +1021,7 @@ export default function CreateIncentivePayPlan() {
           linkedAttributes.forEach((attribute) => {
             linkedWorkFunctions.forEach((workFunction) => {
               const key = [service, revenueType, attribute, workFunction].join(
-                "::"
+                "::",
               );
               const existing = prevByKey.get(key);
               generated.push({
@@ -1081,7 +1104,7 @@ export default function CreateIncentivePayPlan() {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }),
-    []
+    [],
   );
   const toCurrency = (n: number) => (Number.isFinite(n) ? usd.format(n) : "");
   type Row = {
@@ -1193,7 +1216,7 @@ export default function CreateIncentivePayPlan() {
   React.useEffect(() => setVisibleCount(100), [sortedRows.length]);
   const visibleRows = React.useMemo(
     () => sortedRows.slice(0, visibleCount),
-    [sortedRows, visibleCount]
+    [sortedRows, visibleCount],
   );
 
   function interpolateFromTable(mode: Mode, x_in: number) {
@@ -1201,14 +1224,16 @@ export default function CreateIncentivePayPlan() {
       mode === "pct"
         ? { X: r.percentToGoal, Y1: r.netRevHr, Y2: r.rateHr }
         : mode === "nrpmh"
-        ? { X: r.netRevHr, Y1: r.percentToGoal, Y2: r.rateHr }
-        : { X: r.rateHr, Y1: r.percentToGoal, Y2: r.netRevHr };
+          ? { X: r.netRevHr, Y1: r.percentToGoal, Y2: r.rateHr }
+          : { X: r.rateHr, Y1: r.percentToGoal, Y2: r.netRevHr };
 
     const data = rows
       .map(pick)
       .filter(
         (d) =>
-          Number.isFinite(d.X) && Number.isFinite(d.Y1) && Number.isFinite(d.Y2)
+          Number.isFinite(d.X) &&
+          Number.isFinite(d.Y1) &&
+          Number.isFinite(d.Y2),
       );
 
     if (data.length === 0)
@@ -1333,7 +1358,7 @@ export default function CreateIncentivePayPlan() {
           r.minWageCol,
           r.incentiveHr,
           r.rateHr,
-        ].join(",")
+        ].join(","),
       );
       const csv = ["\\ufeff" + header.join(","), ...lines].join("\\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -1364,7 +1389,7 @@ export default function CreateIncentivePayPlan() {
   const starColor = React.useMemo(
     () =>
       !actualPoint ? undefined : actualPoint.x >= 100 ? "#16a34a" : "#dc2626",
-    [actualPoint]
+    [actualPoint],
   );
 
   const columns: ColumnDef[] = React.useMemo(
@@ -1375,7 +1400,7 @@ export default function CreateIncentivePayPlan() {
       { key: "incentiveHr", label: "Incentive/Hour", widthClass: "w-[160px]" },
       { key: "rateHr", label: "Rate/Hour", widthClass: "w-[160px]" },
     ],
-    []
+    [],
   );
 
   function StarShape(props: any) {
@@ -1399,6 +1424,9 @@ export default function CreateIncentivePayPlan() {
 
   const handleSaveDraft = async () => {
     try {
+      if (hasServiceConflict) {
+        return;
+      }
       if (!siteId?.id) return;
 
       setIsDraftLoading(true);
@@ -1424,6 +1452,11 @@ export default function CreateIncentivePayPlan() {
 
       const savedDraft = await res.json();
       setDraftId(savedDraft._id);
+
+      if (savedDraft.name) {
+        const v = savedDraft.name.split("-").pop();
+        if (v) setVersion(v);
+      }
 
       navigate("/incentive-pay-plans", {
         state: { siteId },
@@ -1451,7 +1484,7 @@ export default function CreateIncentivePayPlan() {
         setIsDraftLoading(true);
 
         const res = await fetch(
-          `/api/incentive-pay-plan/draft/${state.draftId}`
+          `/api/incentive-pay-plan/draft/${state.draftId}`,
         );
 
         if (!res.ok) {
@@ -1460,6 +1493,11 @@ export default function CreateIncentivePayPlan() {
 
         const draft = await res.json();
         const p = draft.payload;
+
+        if (draft.name) {
+          const v = draft.name.split("-").pop();
+          if (v) setVersion(v);
+        }
 
         if (cancelled) return;
 
@@ -1602,12 +1640,16 @@ export default function CreateIncentivePayPlan() {
                       </div>
                     </div>
                   </div>,
-                  document.getElementById("modal-root")
+                  document.getElementById("modal-root"),
                 )}
               <button
                 type="button"
-                disabled={false}
-                onClick={() => canSaveDraft && setShowSaveDraftDialog(true)}
+                disabled={!canSaveDraft || isDraftLoading}
+                onClick={async () => {
+                  if (!canSaveDraft) return;
+                  await handleSaveDraft();
+                  setShowSaveDraftDialog(false);
+                }}
                 className={
                   "rounded-full px-3 py-1.5 text-xs font-medium transition " +
                   (canSaveDraft
@@ -1617,6 +1659,7 @@ export default function CreateIncentivePayPlan() {
               >
                 Save draft
               </button>
+
               {showSaveDraftDialog &&
                 createPortal(
                   <div
@@ -1684,7 +1727,7 @@ export default function CreateIncentivePayPlan() {
                       </div>
                     </div>
                   </div>,
-                  document.getElementById("modal-root")
+                  document.getElementById("modal-root"),
                 )}
               <button
                 type="button"
@@ -1755,7 +1798,7 @@ export default function CreateIncentivePayPlan() {
               </label>
               <input
                 type="text"
-                value="v1.0000"
+                value={version}
                 disabled
                 className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-800 outline-none"
               />
@@ -2202,8 +2245,8 @@ export default function CreateIncentivePayPlan() {
                       actualSource === "nrpmh"
                         ? actualNRMPHInput
                         : actualComputed.nrpmh !== ""
-                        ? Number(actualComputed.nrpmh)
-                        : ""
+                          ? Number(actualComputed.nrpmh)
+                          : ""
                     }
                     onFocus={() => {
                       setActualSource("nrpmh");
@@ -2232,8 +2275,8 @@ export default function CreateIncentivePayPlan() {
                       actualSource === "pay"
                         ? hourlyPayInput
                         : actualComputed.hourly !== ""
-                        ? Number(actualComputed.hourly)
-                        : ""
+                          ? Number(actualComputed.hourly)
+                          : ""
                     }
                     onFocus={() => {
                       setActualSource("pay");
@@ -2418,8 +2461,8 @@ export default function CreateIncentivePayPlan() {
                                                 ...combo,
                                                 excluded: !combo.excluded,
                                               }
-                                            : combo
-                                        )
+                                            : combo,
+                                        ),
                                       )
                                     }
                                     className={
@@ -2427,8 +2470,8 @@ export default function CreateIncentivePayPlan() {
                                       (isViewOnly
                                         ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300"
                                         : row.excluded
-                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                                          ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
                                     }
                                     aria-label={
                                       row.excluded
@@ -2513,7 +2556,7 @@ export default function CreateIncentivePayPlan() {
                       className="h-8 px-3 rounded-lg border border-slate-300 text-slate-700 hover:bg-blue-50"
                       onClick={() =>
                         setVisibleCount((c) =>
-                          Math.min(c + 100, sortedRows.length)
+                          Math.min(c + 100, sortedRows.length),
                         )
                       }
                     >
@@ -2587,7 +2630,7 @@ export default function CreateIncentivePayPlan() {
                         className="h-10 px-4 rounded-lg bg_white border border-slate-300 text-slate-700 hover:bg-blue-50"
                         onClick={() =>
                           setVisibleCount((c) =>
-                            Math.min(c + 100, sortedRows.length)
+                            Math.min(c + 100, sortedRows.length),
                           )
                         }
                       >
