@@ -833,6 +833,7 @@ const DataTable = memo(function DataTable({
   columns,
   onDeleteDraft,
   onViewDraft,
+  onEditDraft,
 }: {
   selectedSite: any;
   plans: any[];
@@ -844,6 +845,7 @@ const DataTable = memo(function DataTable({
   columns: { id: string; label: string; visible: boolean }[];
   onDeleteDraft: (draft: any) => void;
   onViewDraft: (draft: any) => void;
+  onEditDraft: (draft: any) => void;
 }) {
   const visibleIds = useMemo(() => plans.map((p: any) => p.id), [plans]);
   const [anchorRect, setAnchorRect] = useState<any>(null);
@@ -965,6 +967,9 @@ const DataTable = memo(function DataTable({
                       onAction={(key) => {
                         if (key === "view") {
                           onViewDraft(r);
+                        }
+                        if (key === "edit") {
+                          onEditDraft(r);
                         }
                         if (key === "delete") {
                           onDeleteDraft(r);
@@ -1506,6 +1511,16 @@ function UIPreview() {
     });
   };
 
+  const handleEditDraft = (draft: any) => {
+    navigate("/createIncentive", {
+      state: {
+        mode: "edit",
+        draftId: draft.id,
+        siteId: selectedSite,
+      },
+    });
+  };
+
   const deleteDraft = useCallback(
     async (draft: any) => {
       if (!draft.__isDraft) return;
@@ -1645,6 +1660,7 @@ function UIPreview() {
             columns={columns}
             onDeleteDraft={deleteDraft}
             onViewDraft={handleViewDraft}
+            onEditDraft={handleEditDraft}
           />
         </HeaderSortCtx.Provider>
 

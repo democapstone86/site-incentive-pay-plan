@@ -812,7 +812,8 @@ function LinkedSection(props) {
 
 export default function CreateIncentivePayPlan() {
   const { state } = useLocation();
-  const siteId = state?.siteId;
+  const [siteId, setSiteId] = React.useState<any>(state?.siteId ?? null);
+
   const navigate = useNavigate();
 
   const [draftId, setDraftId] = React.useState<string | null>(
@@ -1438,6 +1439,7 @@ export default function CreateIncentivePayPlan() {
           siteId: siteId.id,
           draftId,
           payload: buildDraftPayload(),
+          mode,
         }),
       });
 
@@ -1470,8 +1472,16 @@ export default function CreateIncentivePayPlan() {
     }
   };
 
-  const mode = state?.mode ?? "create";
-  const isViewOnly = mode === "view";
+  type PageMode = "create" | "view" | "edit";
+
+  const [mode, setMode] = React.useState<PageMode>(state?.mode ?? "create");
+
+  const isViewMode = mode === "view";
+  const isEditMode = mode === "edit";
+  const isCreateMode = mode === "create";
+
+  // This is what your UI actually cares about
+  const isReadOnly = isViewMode;
 
   React.useEffect(() => {
     if (!state?.draftId) return;
@@ -1496,6 +1506,10 @@ export default function CreateIncentivePayPlan() {
         if (draft.name) {
           const v = draft.name.split("-").pop();
           if (v) setVersion(v);
+        }
+
+        if (draft.siteId) {
+          setSiteId({ id: draft.siteId });
         }
 
         if (cancelled) return;
@@ -1772,7 +1786,7 @@ export default function CreateIncentivePayPlan() {
                     disabled:cursor-not-allowed
                   "
                   value={selectedService}
-                  disabled={isViewOnly}
+                  disabled={isReadOnly}
                   onChange={(e) => setSelectedService(e.target.value)}
                 >
                   <option value="" disabled>
@@ -1810,10 +1824,10 @@ export default function CreateIncentivePayPlan() {
 
               <label className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500 whitespace-nowrap">
                 Incentive plan name (preview)
-                {isViewOnly && (
+                {isViewMode && (
                   <button
                     className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2 rounded-lg"
-                    onClick={() => {}}
+                    onClick={() => setMode("edit")}
                   >
                     <svg
                       className="h-4 w-4 text-slate-600"
@@ -1879,20 +1893,20 @@ export default function CreateIncentivePayPlan() {
               title="Services"
               linkedValues={linkedServices}
               onLinkedChange={setLinkedServices}
-              isViewOnly={isViewOnly}
+              isViewOnly={isReadOnly}
             />
             <LinkedSection
               title="Revenue"
               datasetOverride={revenueDataset}
               linkedValues={linkedRevenues}
-              isViewOnly={isViewOnly}
+              isViewOnly={isReadOnly}
               onRevenueLinkedChange={setActiveRevenueName}
               onLinkedChange={setLinkedRevenues}
             />
             <LinkedSection
               title="Attributes"
               datasetOverride={dynamicAttributeDatasetLocal}
-              isViewOnly={isViewOnly}
+              isViewOnly={isReadOnly}
               linkedValues={linkedAttributes}
               onLinkedChange={setLinkedAttributes}
             />
@@ -1900,7 +1914,7 @@ export default function CreateIncentivePayPlan() {
               title="Work Functions"
               datasetOverride={workFunctionDataset}
               linkedValues={linkedWorkFunctions}
-              isViewOnly={isViewOnly}
+              isViewOnly={isReadOnly}
               onLinkedChange={setLinkedWorkFunctions}
             />
           </div>
@@ -1930,7 +1944,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="Min %"
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={minPercent}
                               onChange={setMinPercent}
@@ -1945,7 +1959,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="Step %"
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={stepPercent}
                               onChange={setStepPercent}
@@ -1960,7 +1974,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="Max %"
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={maxPercent}
                               onChange={setMaxPercent}
@@ -1975,7 +1989,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="Min Wage/ Hour"
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={minWage}
                               onChange={setMinWage}
@@ -1989,7 +2003,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="100% NRPMH"
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={nrpmh}
                               onChange={setNrpmh}
@@ -2006,7 +2020,7 @@ export default function CreateIncentivePayPlan() {
                               label="Pay @ 100%"
                               labelClassName="text-[11px] text-slate-700"
                               value={payAt100}
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               onChange={setPayAt100}
                               prefix="$"
                               suffix="%"
@@ -2021,7 +2035,7 @@ export default function CreateIncentivePayPlan() {
                               label="Minmum Incentive Threshold"
                               labelClassName="text-[11px] text-slate-700"
                               value={minIncentiveThreshold}
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               onChange={setMinIncentiveThreshold}
                               prefix="$"
                               suffix="%"
@@ -2037,7 +2051,7 @@ export default function CreateIncentivePayPlan() {
                                 type="checkbox"
                                 className="w-4 h-4 accent-blue-600"
                                 checked={round05}
-                                disabled={isViewOnly}
+                                disabled={isReadOnly}
                                 onChange={(e) => setRound05(e.target.checked)}
                               />
                               <span className="text-[11px] text-slate-700">
@@ -2047,7 +2061,7 @@ export default function CreateIncentivePayPlan() {
                             <label className="flex items-center gap-2">
                               <input
                                 type="checkbox"
-                                disabled={isViewOnly}
+                                disabled={isReadOnly}
                                 className="w-4 h-4 accent-blue-600"
                                 checked={useActual}
                                 onChange={(e) => setUseActual(e.target.checked)}
@@ -2083,7 +2097,7 @@ export default function CreateIncentivePayPlan() {
                       </label>
                       <input
                         type="date"
-                        disabled={isViewOnly}
+                        disabled={isReadOnly}
                         value={effectiveStartDate}
                         onChange={(e) => setEffectiveStartDate(e.target.value)}
                         className="
@@ -2110,7 +2124,7 @@ export default function CreateIncentivePayPlan() {
                       </label>
                       <input
                         type="date"
-                        disabled={isViewOnly}
+                        disabled={isReadOnly}
                         value={effectiveEndDate}
                         onChange={(e) => setEffectiveEndDate(e.target.value)}
                         className="
@@ -2140,7 +2154,7 @@ export default function CreateIncentivePayPlan() {
                     <input
                       type="checkbox"
                       checked={isArchived}
-                      disabled={isViewOnly}
+                      disabled={isReadOnly}
                       onChange={(e) => setIsArchived(e.target.checked)}
                       className="h-4 w-4 rounded border-slate-300 text-sky-600"
                     />
@@ -2451,7 +2465,7 @@ export default function CreateIncentivePayPlan() {
                                 <div className="flex items-center justify-center">
                                   <button
                                     type="button"
-                                    disabled={isViewOnly}
+                                    disabled={isReadOnly}
                                     onClick={() =>
                                       setAppCombinations((prev) =>
                                         prev.map((combo) =>
@@ -2466,7 +2480,7 @@ export default function CreateIncentivePayPlan() {
                                     }
                                     className={
                                       "inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-semibold transition " +
-                                      (isViewOnly
+                                      (isReadOnly
                                         ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300"
                                         : row.excluded
                                           ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
