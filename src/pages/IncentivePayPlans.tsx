@@ -127,7 +127,7 @@ function fmtDate(iso?: string) {
   const d = new Date(`${iso}T00:00:00`);
   if (isNaN(d.getTime())) return "";
   return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(
-    d.getDate()
+    d.getDate(),
   ).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
@@ -148,7 +148,7 @@ function filterSites(query: string) {
     .toLowerCase();
   if (!q) return SITES;
   return SITES.filter(
-    (s) => s.id.includes(q) || s.name.toLowerCase().includes(q)
+    (s) => s.id.includes(q) || s.name.toLowerCase().includes(q),
   );
 }
 
@@ -185,7 +185,7 @@ function daysBetweenInclusive(fromIso?: string, to?: Date) {
 function isPlanInUse(p: any) {
   const startOk = isOnOrBeforeToday(p.startDate);
   const expired = Boolean(
-    p.endDate && isOnOrBeforeToday(p.endDate || undefined)
+    p.endDate && isOnOrBeforeToday(p.endDate || undefined),
   );
   return p.status === "Active" && !!p.inUse && startOk && !expired;
 }
@@ -249,7 +249,7 @@ export function computeKPI(list: Plan[], today: Date) {
   list.forEach((p) => {
     const startOk = isOnOrBeforeToday(p.startDate);
     const expired = Boolean(
-      p.endDate && isOnOrBeforeToday(p.endDate || undefined)
+      p.endDate && isOnOrBeforeToday(p.endDate || undefined),
     );
     const isArchived = p.status === "Archived" || p.isArchived === true;
     const isPending = p.status === "Pending" || (!startOk && !isArchived);
@@ -353,7 +353,7 @@ const HeaderCell = memo(function HeaderCell({
           aria-hidden
           className={cx(
             "inline-flex transition-colors duration-150",
-            active ? "text-[#1769FF]" : "text-slate-400"
+            active ? "text-[#1769FF]" : "text-slate-400",
           )}
         >
           {active ? <Caret up={sortAsc} /> : <Caret up={true} />}
@@ -446,7 +446,7 @@ const ActionsMenu = ({
             <button
               className={cx(
                 "w-full px-3 py-2 text-left flex items-center gap-2",
-                canView ? "hover:bg-slate-50" : "opacity-40 cursor-not-allowed"
+                canView ? "hover:bg-slate-50" : "opacity-40 cursor-not-allowed",
               )}
               disabled={!canView}
               onClick={() => {
@@ -474,7 +474,7 @@ const ActionsMenu = ({
               disabled={!canEdit}
               className={cx(
                 "w-full px-3 py-2 text-left flex items-center gap-2",
-                canEdit ? "hover:bg-slate-50" : "opacity-40 cursor-not-allowed"
+                canEdit ? "hover:bg-slate-50" : "opacity-40 cursor-not-allowed",
               )}
               onClick={() => {
                 onAction("edit");
@@ -501,7 +501,9 @@ const ActionsMenu = ({
               disabled={!canAudit}
               className={cx(
                 "w-full px-3 py-2 text-left flex items-center gap-2",
-                canAudit ? "hover:bg-slate-50" : "opacity-40 cursor-not-allowed"
+                canAudit
+                  ? "hover:bg-slate-50"
+                  : "opacity-40 cursor-not-allowed",
               )}
               onClick={() => {
                 onAction("audit");
@@ -530,7 +532,7 @@ const ActionsMenu = ({
                 "w-full px-3 py-2 text-left flex items-center gap-2",
                 canArchive
                   ? "hover:bg-slate-50"
-                  : "opacity-40 cursor-not-allowed"
+                  : "opacity-40 cursor-not-allowed",
               )}
               onClick={() => {
                 onAction("archive");
@@ -560,7 +562,7 @@ const ActionsMenu = ({
                 "w-full px-3 py-2 text-left flex items-center gap-2",
                 canDelete
                   ? "hover:bg-slate-50"
-                  : "opacity-40 cursor-not-allowed"
+                  : "opacity-40 cursor-not-allowed",
               )}
               onClick={() => {
                 if (canDelete) {
@@ -727,7 +729,7 @@ const SiteSelect = memo(function SiteSelect({
           <span
             className={cx(
               "truncate",
-              selectedSite ? "text-slate-900" : "text-slate-500"
+              selectedSite ? "text-slate-900" : "text-slate-500",
             )}
           >
             {selectedSite ? selectedSite.name : "Select a site"}
@@ -933,7 +935,7 @@ const DataTable = memo(function DataTable({
                         setAnchorRect(
                           (
                             e.currentTarget as HTMLElement
-                          ).getBoundingClientRect()
+                          ).getBoundingClientRect(),
                         );
                       }}
                     >
@@ -996,7 +998,7 @@ const DataTable = memo(function DataTable({
                           key={col.id}
                           className={cx(
                             DS.table.td,
-                            "max-w-[40ch] break-words"
+                            "max-w-[40ch] break-words",
                           )}
                         >
                           {getDisplayServiceMatrixName(r)}
@@ -1058,7 +1060,7 @@ const SearchAndActions = memo(function SearchAndActions({
 }) {
   const onChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value),
-    [setQ]
+    [setQ],
   );
   const navigate = useNavigate();
   return (
@@ -1120,7 +1122,7 @@ const SearchAndActions = memo(function SearchAndActions({
               DS.toolbarBtn,
               DS.iconBtn,
               DS.subtle,
-              "text-sky-700 ring-sky-300 hover:bg-sky-50 focus-visible:ring-2 focus-visible:ring-sky-400"
+              "text-sky-700 ring-sky-300 hover:bg-sky-50 focus-visible:ring-2 focus-visible:ring-sky-400",
             )}
           >
             <svg
@@ -1153,7 +1155,7 @@ const SearchAndActions = memo(function SearchAndActions({
               DS.toolbarBtn,
               "h-8 px-2",
               DS.dangerGhost,
-              selectedCount > 0 ? "" : "opacity-50 cursor-not-allowed"
+              selectedCount > 0 ? "" : "opacity-50 cursor-not-allowed",
             )}
             aria-label="Bulk archive"
           >
@@ -1330,8 +1332,14 @@ function UIPreview() {
 
     async function loadDrafts() {
       const res = await fetch(
-        `/api/incentive-pay-plan/draft?siteId=${selectedSite.id}`
+        `/api/incentive-pay-plan/drafts?siteId=${selectedSite.id}`,
       );
+
+      if (!res.ok) {
+        console.error("Failed to load drafts", res.status);
+        return;
+      }
+
       const drafts = await res.json();
 
       setPlansBySite((prev) => {
@@ -1351,17 +1359,33 @@ function UIPreview() {
           byId.set(d._id, {
             id: d._id,
             name: d.name,
-            status: d.status === "IN_USE" ? "Active" : d.status,
+
+            // ✅ normalize status for UI
+            status:
+              d.status === "SUBMITTED"
+                ? "Pending"
+                : d.status === "IN_USE"
+                  ? "Active"
+                  : d.status === "ARCHIVED"
+                    ? "Archived"
+                    : "Pending",
+
             services:
               d.payload?.serviceCount ?? d.payload?.linkedServices?.length ?? 0,
+
             revenueType:
               d.payload?.activeRevenueName ??
               d.payload?.linkedRevenues?.[0] ??
               "Draft",
+
             startDate: d.payload?.effectiveStartDate,
             endDate: d.payload?.effectiveEndDate,
+
+            // ✅ matches isPlanInUse logic
             inUse: d.status === "IN_USE",
-            isArchived: Boolean(d.payload?.isArchived),
+
+            isArchived: d.status === "ARCHIVED",
+
             __isDraft: true,
           });
         }
@@ -1386,7 +1410,7 @@ function UIPreview() {
   }, []);
 
   const [plansBySite, setPlansBySite] = useState<Record<string, any[]>>(() =>
-    JSON.parse(JSON.stringify(INITIAL_PLANS))
+    JSON.parse(JSON.stringify(INITIAL_PLANS)),
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
@@ -1433,7 +1457,7 @@ function UIPreview() {
   }, []);
   const toggleColumnVisible = useCallback((id: string) => {
     setColumns((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, visible: !c.visible } : c))
+      prev.map((c) => (c.id === id ? { ...c, visible: !c.visible } : c)),
     );
   }, []);
 
@@ -1464,7 +1488,7 @@ function UIPreview() {
       const siteId = selectedSite.id;
       const list = prev[siteId] || [];
       const nextList = list.map((p) =>
-        selectedIds.has(p.id) ? { ...p, status: "Archived", inUse: false } : p
+        selectedIds.has(p.id) ? { ...p, status: "Archived", inUse: false } : p,
       );
       return { ...prev, [siteId]: nextList };
     });
@@ -1499,7 +1523,7 @@ function UIPreview() {
         };
       });
     },
-    [selectedSite]
+    [selectedSite],
   );
 
   const plans = useMemo(() => {
@@ -1518,8 +1542,8 @@ function UIPreview() {
     const filtered = query
       ? statusFiltered.filter((r: any) =>
           [r.name, r.status, r.revenueType].some((v: any) =>
-            String(v).toLowerCase().includes(query)
-          )
+            String(v).toLowerCase().includes(query),
+          ),
         )
       : statusFiltered;
     const cmp = (a: any, b: any) => {

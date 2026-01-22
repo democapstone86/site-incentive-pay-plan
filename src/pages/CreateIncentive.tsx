@@ -1148,8 +1148,8 @@ export default function CreateIncentivePayPlan() {
     Number(maxPercent) >= Number(minPercent);
 
   const canSubmit = React.useMemo(() => {
-    return detailsValid && calculatorValid && !dateError;
-  }, [detailsValid, calculatorValid, dateError]);
+    return detailsValid && calculatorValid && !dateError && !hasServiceConflict;
+  }, [detailsValid, calculatorValid, dateError, hasServiceConflict]);
 
   const rows = React.useMemo<Row[]>(() => {
     const start = parseNum(minPercent);
@@ -1440,9 +1440,8 @@ export default function CreateIncentivePayPlan() {
           payload: buildDraftPayload(),
         }),
       });
+
       if (res.status === 409) {
-        const err = await res.json();
-        alert(err.message);
         return;
       }
 

@@ -5,6 +5,15 @@ function isSamePayload(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+function extractVersion(name = "") {
+  const match = name.match(/-v(\d+\.\d+)/);
+  return match ? parseFloat(match[1]) : 1.0;
+}
+
+function nextVersion(currentVersion) {
+  return (currentVersion + 0.0001).toFixed(4);
+}
+
 export async function createDraft(req, res) {
   const { siteId, payload, draftId } = req.body;
 
