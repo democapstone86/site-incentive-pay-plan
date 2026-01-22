@@ -144,7 +144,7 @@ function filterRows(rows, query, showInactiveToggle, showInactive) {
   const trimmedQuery = (query || "").trim().toLowerCase();
   if (trimmedQuery) {
     cleaned = cleaned.filter((row) =>
-      row.name.toLowerCase().includes(trimmedQuery)
+      row.name.toLowerCase().includes(trimmedQuery),
     );
   }
 
@@ -245,7 +245,7 @@ function LinkedSection(props) {
   const [rows, setRows] = React.useState(() =>
     initLinkableRows(effectiveDataset, {
       withStatus: sectionConfig.withStatus,
-    })
+    }),
   );
 
   const [search, setSearch] = React.useState("");
@@ -318,7 +318,7 @@ function LinkedSection(props) {
     }
 
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
@@ -337,7 +337,7 @@ function LinkedSection(props) {
     rows,
     search,
     sectionConfig.showInactiveToggle,
-    showInactive
+    showInactive,
   );
 
   const sortedRows = applySort(filteredRows, sortColumn, sortDirection);
@@ -812,17 +812,35 @@ function LinkedSection(props) {
 
 export default function CreateIncentivePayPlan() {
   const { state } = useLocation();
-  const siteId = state?.siteId;
+  const [siteId, setSiteId] = React.useState<any>(state?.siteId ?? null);
+
   const navigate = useNavigate();
 
   const [draftId, setDraftId] = React.useState<string | null>(
-    state?.draftId ?? null
+    state?.draftId ?? null,
   );
+
+  const [version, setVersion] = React.useState("v1.0000");
+
+  const [existingDrafts, setExistingDrafts] = React.useState<any[]>([]);
 
   const [isDraftLoading, setIsDraftLoading] = React.useState(false);
 
   const [selectedService, setSelectedService] = React.useState("");
-  const canSaveDraft = Boolean(siteId?.id && selectedService);
+
+  const hasServiceConflict = React.useMemo(() => {
+    if (!selectedService || !siteId?.id) return false;
+
+    return existingDrafts.some(
+      (d) =>
+        String(d.siteId) === String(siteId.id) &&
+        d.payload?.selectedService === selectedService &&
+        d._id !== draftId,
+    );
+  }, [existingDrafts, selectedService, siteId?.id, draftId]);
+
+  const canSaveDraft =
+    Boolean(siteId?.id && selectedService) && !hasServiceConflict;
 
   const [showSaveDraftDialog, setShowSaveDraftDialog] = React.useState(false);
 
@@ -831,8 +849,17 @@ export default function CreateIncentivePayPlan() {
   const previewPlanName = React.useMemo(() => {
     const sitePart = siteId?.id ? `SITE-${siteId.id}` : "SITE-";
     const servicePart = selectedService ? `-${selectedService}` : "";
-    return `${sitePart}${servicePart}-v.10000`;
-  }, [siteId?.id, selectedService]);
+    return `${sitePart}${servicePart}-${version}`;
+  }, [siteId?.id, selectedService, version]);
+
+  React.useEffect(() => {
+    if (!siteId?.id) return;
+
+    fetch(`/api/incentive-pay-plan/drafts?siteId=${siteId.id}`)
+      .then((res) => res.json())
+      .then((data) => setExistingDrafts(data))
+      .catch(() => setExistingDrafts([]));
+  }, [siteId?.id]);
 
   const [minPercent, setMinPercent] = React.useState<number | "">("");
   const [stepPercent, setStepPercent] = React.useState<number | "">("");
@@ -852,7 +879,7 @@ export default function CreateIncentivePayPlan() {
   const [actualError, setActualError] = React.useState("");
   const [actualNote, setActualNote] = React.useState("");
   const [actualNRMPHInput, setActualNRPMHInput] = React.useState<number | "">(
-    ""
+    "",
   );
 
   const [hourlyPayInput, setHourlyPayInput] = React.useState<number | "">("");
@@ -880,8 +907,6 @@ export default function CreateIncentivePayPlan() {
       effectiveStartDate,
       effectiveEndDate,
       isArchived,
-      previewPlanName,
-
       calculator: {
         minPercent,
         maxPercent,
@@ -912,7 +937,6 @@ export default function CreateIncentivePayPlan() {
     effectiveStartDate,
     effectiveEndDate,
     isArchived,
-    previewPlanName,
     minPercent,
     maxPercent,
     stepPercent,
@@ -957,7 +981,7 @@ export default function CreateIncentivePayPlan() {
 
   const revenueDataset = React.useMemo(
     () => (linkedServices.length ? REVENUE_NAMES : []),
-    [linkedServices.length]
+    [linkedServices.length],
   );
 
   const workFunctionDataset = React.useMemo(
@@ -965,12 +989,12 @@ export default function CreateIncentivePayPlan() {
       linkedServices.length && linkedRevenues.length && linkedAttributes.length
         ? WORK_FUNCTION_NAMES
         : [],
-    [linkedServices.length, linkedRevenues.length, linkedAttributes.length]
+    [linkedServices.length, linkedRevenues.length, linkedAttributes.length],
   );
 
   if (hideExcludedRows) {
     displayedCombinations = displayedCombinations.filter(
-      (row) => !row.excluded
+      (row) => !row.excluded,
     );
   }
 
@@ -998,7 +1022,7 @@ export default function CreateIncentivePayPlan() {
           linkedAttributes.forEach((attribute) => {
             linkedWorkFunctions.forEach((workFunction) => {
               const key = [service, revenueType, attribute, workFunction].join(
-                "::"
+                "::",
               );
               const existing = prevByKey.get(key);
               generated.push({
@@ -1081,7 +1105,7 @@ export default function CreateIncentivePayPlan() {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }),
-    []
+    [],
   );
   const toCurrency = (n: number) => (Number.isFinite(n) ? usd.format(n) : "");
   type Row = {
@@ -1125,8 +1149,8 @@ export default function CreateIncentivePayPlan() {
     Number(maxPercent) >= Number(minPercent);
 
   const canSubmit = React.useMemo(() => {
-    return detailsValid && calculatorValid && !dateError;
-  }, [detailsValid, calculatorValid, dateError]);
+    return detailsValid && calculatorValid && !dateError && !hasServiceConflict;
+  }, [detailsValid, calculatorValid, dateError, hasServiceConflict]);
 
   const rows = React.useMemo<Row[]>(() => {
     const start = parseNum(minPercent);
@@ -1193,7 +1217,7 @@ export default function CreateIncentivePayPlan() {
   React.useEffect(() => setVisibleCount(100), [sortedRows.length]);
   const visibleRows = React.useMemo(
     () => sortedRows.slice(0, visibleCount),
-    [sortedRows, visibleCount]
+    [sortedRows, visibleCount],
   );
 
   function interpolateFromTable(mode: Mode, x_in: number) {
@@ -1201,14 +1225,16 @@ export default function CreateIncentivePayPlan() {
       mode === "pct"
         ? { X: r.percentToGoal, Y1: r.netRevHr, Y2: r.rateHr }
         : mode === "nrpmh"
-        ? { X: r.netRevHr, Y1: r.percentToGoal, Y2: r.rateHr }
-        : { X: r.rateHr, Y1: r.percentToGoal, Y2: r.netRevHr };
+          ? { X: r.netRevHr, Y1: r.percentToGoal, Y2: r.rateHr }
+          : { X: r.rateHr, Y1: r.percentToGoal, Y2: r.netRevHr };
 
     const data = rows
       .map(pick)
       .filter(
         (d) =>
-          Number.isFinite(d.X) && Number.isFinite(d.Y1) && Number.isFinite(d.Y2)
+          Number.isFinite(d.X) &&
+          Number.isFinite(d.Y1) &&
+          Number.isFinite(d.Y2),
       );
 
     if (data.length === 0)
@@ -1333,7 +1359,7 @@ export default function CreateIncentivePayPlan() {
           r.minWageCol,
           r.incentiveHr,
           r.rateHr,
-        ].join(",")
+        ].join(","),
       );
       const csv = ["\\ufeff" + header.join(","), ...lines].join("\\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -1364,7 +1390,7 @@ export default function CreateIncentivePayPlan() {
   const starColor = React.useMemo(
     () =>
       !actualPoint ? undefined : actualPoint.x >= 100 ? "#16a34a" : "#dc2626",
-    [actualPoint]
+    [actualPoint],
   );
 
   const columns: ColumnDef[] = React.useMemo(
@@ -1375,7 +1401,7 @@ export default function CreateIncentivePayPlan() {
       { key: "incentiveHr", label: "Incentive/Hour", widthClass: "w-[160px]" },
       { key: "rateHr", label: "Rate/Hour", widthClass: "w-[160px]" },
     ],
-    []
+    [],
   );
 
   function StarShape(props: any) {
@@ -1399,6 +1425,9 @@ export default function CreateIncentivePayPlan() {
 
   const handleSaveDraft = async () => {
     try {
+      if (hasServiceConflict) {
+        return;
+      }
       if (!siteId?.id) return;
 
       setIsDraftLoading(true);
@@ -1410,11 +1439,11 @@ export default function CreateIncentivePayPlan() {
           siteId: siteId.id,
           draftId,
           payload: buildDraftPayload(),
+          mode,
         }),
       });
+
       if (res.status === 409) {
-        const err = await res.json();
-        alert(err.message);
         return;
       }
 
@@ -1424,6 +1453,11 @@ export default function CreateIncentivePayPlan() {
 
       const savedDraft = await res.json();
       setDraftId(savedDraft._id);
+
+      if (savedDraft.name) {
+        const v = savedDraft.name.split("-").pop();
+        if (v) setVersion(v);
+      }
 
       navigate("/incentive-pay-plans", {
         state: { siteId },
@@ -1438,8 +1472,16 @@ export default function CreateIncentivePayPlan() {
     }
   };
 
-  const mode = state?.mode ?? "create";
-  const isViewOnly = mode === "view";
+  type PageMode = "create" | "view" | "edit";
+
+  const [mode, setMode] = React.useState<PageMode>(state?.mode ?? "create");
+
+  const isViewMode = mode === "view";
+  const isEditMode = mode === "edit";
+  const isCreateMode = mode === "create";
+
+  // This is what your UI actually cares about
+  const isReadOnly = isViewMode;
 
   React.useEffect(() => {
     if (!state?.draftId) return;
@@ -1451,7 +1493,7 @@ export default function CreateIncentivePayPlan() {
         setIsDraftLoading(true);
 
         const res = await fetch(
-          `/api/incentive-pay-plan/draft/${state.draftId}`
+          `/api/incentive-pay-plan/draft/${state.draftId}`,
         );
 
         if (!res.ok) {
@@ -1460,6 +1502,15 @@ export default function CreateIncentivePayPlan() {
 
         const draft = await res.json();
         const p = draft.payload;
+
+        if (draft.name) {
+          const v = draft.name.split("-").pop();
+          if (v) setVersion(v);
+        }
+
+        if (draft.siteId) {
+          setSiteId({ id: draft.siteId });
+        }
 
         if (cancelled) return;
 
@@ -1602,12 +1653,16 @@ export default function CreateIncentivePayPlan() {
                       </div>
                     </div>
                   </div>,
-                  document.getElementById("modal-root")
+                  document.getElementById("modal-root"),
                 )}
               <button
                 type="button"
-                disabled={false}
-                onClick={() => canSaveDraft && setShowSaveDraftDialog(true)}
+                disabled={!canSaveDraft || isDraftLoading}
+                onClick={async () => {
+                  if (!canSaveDraft) return;
+                  await handleSaveDraft();
+                  setShowSaveDraftDialog(false);
+                }}
                 className={
                   "rounded-full px-3 py-1.5 text-xs font-medium transition " +
                   (canSaveDraft
@@ -1617,6 +1672,7 @@ export default function CreateIncentivePayPlan() {
               >
                 Save draft
               </button>
+
               {showSaveDraftDialog &&
                 createPortal(
                   <div
@@ -1684,7 +1740,7 @@ export default function CreateIncentivePayPlan() {
                       </div>
                     </div>
                   </div>,
-                  document.getElementById("modal-root")
+                  document.getElementById("modal-root"),
                 )}
               <button
                 type="button"
@@ -1730,7 +1786,7 @@ export default function CreateIncentivePayPlan() {
                     disabled:cursor-not-allowed
                   "
                   value={selectedService}
-                  disabled={isViewOnly}
+                  disabled={isReadOnly}
                   onChange={(e) => setSelectedService(e.target.value)}
                 >
                   <option value="" disabled>
@@ -1755,7 +1811,7 @@ export default function CreateIncentivePayPlan() {
               </label>
               <input
                 type="text"
-                value="v1.0000"
+                value={version}
                 disabled
                 className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-800 outline-none"
               />
@@ -1768,10 +1824,10 @@ export default function CreateIncentivePayPlan() {
 
               <label className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500 whitespace-nowrap">
                 Incentive plan name (preview)
-                {isViewOnly && (
+                {isViewMode && (
                   <button
                     className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2 rounded-lg"
-                    onClick={() => {}}
+                    onClick={() => setMode("edit")}
                   >
                     <svg
                       className="h-4 w-4 text-slate-600"
@@ -1837,20 +1893,20 @@ export default function CreateIncentivePayPlan() {
               title="Services"
               linkedValues={linkedServices}
               onLinkedChange={setLinkedServices}
-              isViewOnly={isViewOnly}
+              isViewOnly={isReadOnly}
             />
             <LinkedSection
               title="Revenue"
               datasetOverride={revenueDataset}
               linkedValues={linkedRevenues}
-              isViewOnly={isViewOnly}
+              isViewOnly={isReadOnly}
               onRevenueLinkedChange={setActiveRevenueName}
               onLinkedChange={setLinkedRevenues}
             />
             <LinkedSection
               title="Attributes"
               datasetOverride={dynamicAttributeDatasetLocal}
-              isViewOnly={isViewOnly}
+              isViewOnly={isReadOnly}
               linkedValues={linkedAttributes}
               onLinkedChange={setLinkedAttributes}
             />
@@ -1858,7 +1914,7 @@ export default function CreateIncentivePayPlan() {
               title="Work Functions"
               datasetOverride={workFunctionDataset}
               linkedValues={linkedWorkFunctions}
-              isViewOnly={isViewOnly}
+              isViewOnly={isReadOnly}
               onLinkedChange={setLinkedWorkFunctions}
             />
           </div>
@@ -1888,7 +1944,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="Min %"
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={minPercent}
                               onChange={setMinPercent}
@@ -1903,7 +1959,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="Step %"
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={stepPercent}
                               onChange={setStepPercent}
@@ -1918,7 +1974,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="Max %"
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={maxPercent}
                               onChange={setMaxPercent}
@@ -1933,7 +1989,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="Min Wage/ Hour"
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={minWage}
                               onChange={setMinWage}
@@ -1947,7 +2003,7 @@ export default function CreateIncentivePayPlan() {
                           <div className="flex flex-col gap-1">
                             <NumberInput
                               label="100% NRPMH"
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               labelClassName="text-[11px] text-slate-700"
                               value={nrpmh}
                               onChange={setNrpmh}
@@ -1964,7 +2020,7 @@ export default function CreateIncentivePayPlan() {
                               label="Pay @ 100%"
                               labelClassName="text-[11px] text-slate-700"
                               value={payAt100}
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               onChange={setPayAt100}
                               prefix="$"
                               suffix="%"
@@ -1979,7 +2035,7 @@ export default function CreateIncentivePayPlan() {
                               label="Minmum Incentive Threshold"
                               labelClassName="text-[11px] text-slate-700"
                               value={minIncentiveThreshold}
-                              disabled={isViewOnly}
+                              disabled={isReadOnly}
                               onChange={setMinIncentiveThreshold}
                               prefix="$"
                               suffix="%"
@@ -1995,7 +2051,7 @@ export default function CreateIncentivePayPlan() {
                                 type="checkbox"
                                 className="w-4 h-4 accent-blue-600"
                                 checked={round05}
-                                disabled={isViewOnly}
+                                disabled={isReadOnly}
                                 onChange={(e) => setRound05(e.target.checked)}
                               />
                               <span className="text-[11px] text-slate-700">
@@ -2005,7 +2061,7 @@ export default function CreateIncentivePayPlan() {
                             <label className="flex items-center gap-2">
                               <input
                                 type="checkbox"
-                                disabled={isViewOnly}
+                                disabled={isReadOnly}
                                 className="w-4 h-4 accent-blue-600"
                                 checked={useActual}
                                 onChange={(e) => setUseActual(e.target.checked)}
@@ -2041,7 +2097,7 @@ export default function CreateIncentivePayPlan() {
                       </label>
                       <input
                         type="date"
-                        disabled={isViewOnly}
+                        disabled={isReadOnly}
                         value={effectiveStartDate}
                         onChange={(e) => setEffectiveStartDate(e.target.value)}
                         className="
@@ -2068,7 +2124,7 @@ export default function CreateIncentivePayPlan() {
                       </label>
                       <input
                         type="date"
-                        disabled={isViewOnly}
+                        disabled={isReadOnly}
                         value={effectiveEndDate}
                         onChange={(e) => setEffectiveEndDate(e.target.value)}
                         className="
@@ -2098,7 +2154,7 @@ export default function CreateIncentivePayPlan() {
                     <input
                       type="checkbox"
                       checked={isArchived}
-                      disabled={isViewOnly}
+                      disabled={isReadOnly}
                       onChange={(e) => setIsArchived(e.target.checked)}
                       className="h-4 w-4 rounded border-slate-300 text-sky-600"
                     />
@@ -2202,8 +2258,8 @@ export default function CreateIncentivePayPlan() {
                       actualSource === "nrpmh"
                         ? actualNRMPHInput
                         : actualComputed.nrpmh !== ""
-                        ? Number(actualComputed.nrpmh)
-                        : ""
+                          ? Number(actualComputed.nrpmh)
+                          : ""
                     }
                     onFocus={() => {
                       setActualSource("nrpmh");
@@ -2232,8 +2288,8 @@ export default function CreateIncentivePayPlan() {
                       actualSource === "pay"
                         ? hourlyPayInput
                         : actualComputed.hourly !== ""
-                        ? Number(actualComputed.hourly)
-                        : ""
+                          ? Number(actualComputed.hourly)
+                          : ""
                     }
                     onFocus={() => {
                       setActualSource("pay");
@@ -2409,7 +2465,7 @@ export default function CreateIncentivePayPlan() {
                                 <div className="flex items-center justify-center">
                                   <button
                                     type="button"
-                                    disabled={isViewOnly}
+                                    disabled={isReadOnly}
                                     onClick={() =>
                                       setAppCombinations((prev) =>
                                         prev.map((combo) =>
@@ -2418,17 +2474,17 @@ export default function CreateIncentivePayPlan() {
                                                 ...combo,
                                                 excluded: !combo.excluded,
                                               }
-                                            : combo
-                                        )
+                                            : combo,
+                                        ),
                                       )
                                     }
                                     className={
                                       "inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-semibold transition " +
-                                      (isViewOnly
+                                      (isReadOnly
                                         ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300"
                                         : row.excluded
-                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
+                                          ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
                                     }
                                     aria-label={
                                       row.excluded
@@ -2513,7 +2569,7 @@ export default function CreateIncentivePayPlan() {
                       className="h-8 px-3 rounded-lg border border-slate-300 text-slate-700 hover:bg-blue-50"
                       onClick={() =>
                         setVisibleCount((c) =>
-                          Math.min(c + 100, sortedRows.length)
+                          Math.min(c + 100, sortedRows.length),
                         )
                       }
                     >
@@ -2587,7 +2643,7 @@ export default function CreateIncentivePayPlan() {
                         className="h-10 px-4 rounded-lg bg_white border border-slate-300 text-slate-700 hover:bg-blue-50"
                         onClick={() =>
                           setVisibleCount((c) =>
-                            Math.min(c + 100, sortedRows.length)
+                            Math.min(c + 100, sortedRows.length),
                           )
                         }
                       >
