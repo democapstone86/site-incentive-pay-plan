@@ -8,53 +8,83 @@ function nextVersion(version = "v1.0000") {
 }
 
 export async function createDraft(req, res) {
-  const { siteId, payload, draftId, mode } = req.body;
-  const service = payload?.selectedService;
+  const rawSiteId = req.body.siteId;
+  const siteId = String(rawSiteId);
+  const { payload, draftId, mode } = req.body;
 
-  if (!siteId || !payload?.selectedService) {
-    return res.status(400).json({ error: "Missing siteId or selectedService" });
+  const serviceType = payload?.selectedService;
+
+  if (!siteId || !serviceType) {
+    return res.status(400).json({ error: "Missing siteId or serviceType" });
   }
 
   const status = computeIncentivePayPlanStatus(payload);
 
-  let draft = draftId
-    ? await IncentivePayPlanDraft.findById(draftId)
-    : await IncentivePayPlanDraft.findOne({
-        siteId,
-        "payload.selectedService": service,
-      });
+  let baseDraft;
 
-  const hasChanges =
-    !draft || JSON.stringify(draft.payload) !== JSON.stringify(payload);
+  if (draftId) {
+    baseDraft = await IncentivePayPlanDraft.findById(draftId);
 
-  if (!draft) {
-    draft = await IncentivePayPlanDraft.create({
+    if (!baseDraft) {
+      return res.status(404).json({ message: "Draft not found" });
+    }
+  } else {
+    baseDraft = await IncentivePayPlanDraft.findOne({
       siteId,
+      serviceType,
+    }).sort({ createdAt: -1 });
+  }
+
+  if (!baseDraft) {
+    const draft = await IncentivePayPlanDraft.create({
+      siteId,
+      serviceType,
       payload,
       status,
       version: "v1.0000",
-      name: `SITE-${siteId}-${service}-v1.0000`,
+      name: `SITE-${siteId}-${serviceType}-v1.0000`,
       createdBy: req.user?.id,
     });
 
     return res.status(201).json(draft);
   }
 
-  if (!hasChanges && mode !== "view" && mode !== "edit") {
-    return res.status(409).json({ message: "No changes detected" });
+  if (draftId) {
+    const hasChanges =
+      JSON.stringify(baseDraft.payload) !== JSON.stringify(payload);
+
+    if (!hasChanges) {
+      return res.status(409).json({ message: "No changes detected" });
+    }
   }
 
-  if (shouldIncrementVersion({ mode, siteId, service, hasChanges })) {
-    draft.version = nextVersion(draft.version);
-    draft.name = `SITE-${siteId}-${service}-${draft.version}`;
+  const latestDraft = await IncentivePayPlanDraft.findOne({
+    siteId,
+    serviceType,
+  }).sort({ createdAt: -1 });
+
+  const newVersion = nextVersion(latestDraft?.version ?? "v1.0000");
+
+  try {
+    const newDraft = await IncentivePayPlanDraft.create({
+      siteId,
+      serviceType,
+      payload,
+      status,
+      version: newVersion,
+      name: `SITE-${siteId}-${serviceType}-${newVersion}`,
+      createdBy: req.user?.id,
+      previousDraftId: baseDraft._id,
+    });
+
+    return res.status(201).json(newDraft);
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ message: "This version already exists." });
+    }
+
+    throw err;
   }
-
-  draft.payload = payload;
-  draft.status = status;
-  draft.updatedAt = new Date();
-
-  await draft.save();
-  res.status(200).json(draft);
 }
 
 export async function deleteDraft(req, res) {

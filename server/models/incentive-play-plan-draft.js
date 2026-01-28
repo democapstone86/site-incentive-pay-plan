@@ -8,6 +8,17 @@ const DraftSchema = new mongoose.Schema(
       index: true,
     },
 
+    serviceType: {
+      type: String,
+      required: true,
+      index: true,
+    },
+
+    version: {
+      type: String,
+      required: true,
+    },
+
     name: {
       type: String,
       required: true,
@@ -27,8 +38,22 @@ const DraftSchema = new mongoose.Schema(
     createdBy: {
       type: String,
     },
+
+    previousDraftId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "IncentivePayPlanDraft",
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
+);
+
+DraftSchema.index(
+  {
+    siteId: 1,
+    serviceType: 1,
+    version: 1,
+  },
+  { unique: true },
 );
 
 export const IncentivePayPlanDraft =
