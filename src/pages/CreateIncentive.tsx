@@ -1424,6 +1424,10 @@ export default function CreateIncentivePayPlan() {
   }
 
   const handleSaveDraft = async () => {
+    if (isReadOnly) return;
+    if (hasServiceConflict) return;
+    if (!siteId?.id) return;
+
     try {
       if (hasServiceConflict) {
         return;
@@ -1482,6 +1486,8 @@ export default function CreateIncentivePayPlan() {
 
   // This is what your UI actually cares about
   const isReadOnly = isViewMode;
+
+  const isSaveDraftDisabled = isReadOnly || !canSaveDraft || isDraftLoading;
 
   React.useEffect(() => {
     if (!state?.draftId) return;
@@ -1657,17 +1663,17 @@ export default function CreateIncentivePayPlan() {
                 )}
               <button
                 type="button"
-                disabled={!canSaveDraft || isDraftLoading}
+                disabled={isSaveDraftDisabled}
                 onClick={async () => {
-                  if (!canSaveDraft) return;
+                  if (isSaveDraftDisabled) return;
                   await handleSaveDraft();
                   setShowSaveDraftDialog(false);
                 }}
                 className={
                   "rounded-full px-3 py-1.5 text-xs font-medium transition " +
-                  (canSaveDraft
-                    ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    : "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400")
+                  (isSaveDraftDisabled
+                    ? "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400"
+                    : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")
                 }
               >
                 Save draft
