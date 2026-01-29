@@ -1352,20 +1352,33 @@ function UIPreview() {
 
         const byId = new Map<string, any>();
 
-        // keep mock + non-draft plans
         for (const p of existing) {
           if (!p.__isDraft) {
             byId.set(p.id, p);
           }
         }
 
-        // overwrite drafts by id
+        const latestByService = new Map<string, any>();
+
         for (const d of drafts) {
+          const service = d.serviceType ?? d.payload?.selectedService;
+          if (!service) continue;
+
+          const existingDraft = latestByService.get(service);
+
+          if (
+            !existingDraft ||
+            new Date(d.createdAt) > new Date(existingDraft.createdAt)
+          ) {
+            latestByService.set(service, d);
+          }
+        }
+
+        for (const d of latestByService.values()) {
           byId.set(d._id, {
             id: d._id,
             name: d.name,
 
-            // ✅ normalize status for UI
             status:
               d.status === "SUBMITTED"
                 ? "Pending"
@@ -1386,9 +1399,7 @@ function UIPreview() {
             startDate: d.payload?.effectiveStartDate,
             endDate: d.payload?.effectiveEndDate,
 
-            // ✅ matches isPlanInUse logic
             inUse: d.status === "IN_USE",
-
             isArchived: d.status === "ARCHIVED",
 
             __isDraft: true,
@@ -1409,7 +1420,6 @@ function UIPreview() {
     if (location.state?.siteId) {
       setSelectedSite(location.state.siteId);
 
-      // clear router state so it does not persist
       navigate(location.pathname, { replace: true, state: null });
     }
   }, []);
