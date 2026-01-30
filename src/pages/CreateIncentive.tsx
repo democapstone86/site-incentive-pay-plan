@@ -820,7 +820,7 @@ export default function CreateIncentivePayPlan() {
     state?.draftId ?? null,
   );
 
-  const [version, setVersion] = React.useState("v1.0000");
+  const [version, setVersion] = React.useState<string | null>("v1.0000");
 
   const [existingDrafts, setExistingDrafts] = React.useState<any[]>([]);
 
@@ -859,6 +859,7 @@ export default function CreateIncentivePayPlan() {
   const [showCancelDialog, setShowCancelDialog] = React.useState(false);
 
   const previewPlanName = React.useMemo(() => {
+    if (!version) return "";
     const sitePart = siteId?.id ? `SITE-${siteId.id}` : "SITE-";
     const servicePart = selectedService ? `-${selectedService}` : "";
     return `${sitePart}${servicePart}-${version}`;
@@ -1475,6 +1476,10 @@ export default function CreateIncentivePayPlan() {
         if (v) setVersion(v);
       }
 
+      if (savedDraft.version) {
+        setVersion(savedDraft.version);
+      }
+
       navigate("/incentive-pay-plans", {
         state: { siteId },
       });
@@ -1520,6 +1525,10 @@ export default function CreateIncentivePayPlan() {
         if (draft.name) {
           const v = draft.name.split("-").pop();
           if (v) setVersion(v);
+        }
+
+        if (draft.version) {
+          setVersion(draft.version);
         }
 
         if (draft.siteId) {
@@ -1674,8 +1683,7 @@ export default function CreateIncentivePayPlan() {
                 disabled={isSaveDraftDisabled}
                 onClick={async () => {
                   if (isSaveDraftDisabled) return;
-                  await handleSaveDraft();
-                  setShowSaveDraftDialog(false);
+                  setShowSaveDraftDialog(true);
                 }}
                 className={
                   "rounded-full px-3 py-1.5 text-xs font-medium transition " +
