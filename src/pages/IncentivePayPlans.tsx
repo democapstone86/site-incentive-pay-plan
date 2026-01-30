@@ -1100,7 +1100,11 @@ const SearchAndActions = memo(function SearchAndActions({
             aria-label="Add"
             onClick={() =>
               navigate("/createIncentive", {
-                state: { siteId: selectedSite },
+                state: {
+                  mode: "create",
+                  draftId: null,
+                  siteId: selectedSite,
+                },
               })
             }
             disabled={!selectedSite}
