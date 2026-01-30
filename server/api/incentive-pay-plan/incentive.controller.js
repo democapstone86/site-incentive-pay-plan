@@ -1,16 +1,30 @@
 import { IncentivePayPlanDraft } from "../../models/incentive-play-plan-draft.js";
 import { computeIncentivePayPlanStatus } from "../../services/incentive-pay-plan-status.js";
 
-function nextVersion(version = "v1.0000") {
+function parseVersion(version = "v1.0000") {
   const [, major, patch] = version.match(/^v(\d+)\.(\d{4})$/) || [];
-  if (!major || !patch) return "v1.0000";
-  return `v${major}.${String(Number(patch) + 1).padStart(4, "0")}`;
+  return {
+    major: Number(major || 1),
+    patch: Number(patch || 0),
+  };
+}
+
+function nextMajorVersion(version) {
+  const { major } = parseVersion(version);
+  return `v${major + 1}.0000`;
+}
+
+function nextPatchVersion(version) {
+  const { major, patch } = parseVersion(version);
+  return `v${major}.${String(patch + 1).padStart(4, "0")}`;
 }
 
 export async function createDraft(req, res) {
   const rawSiteId = req.body.siteId;
   const siteId = String(rawSiteId);
   const { payload, draftId, mode } = req.body;
+
+  const isEdit = mode === "edit" && !!draftId;
 
   const serviceType = payload?.selectedService;
 
@@ -20,29 +34,33 @@ export async function createDraft(req, res) {
 
   const status = computeIncentivePayPlanStatus(payload);
 
-  let baseDraft;
+  let baseDraft = null;
 
-  if (draftId) {
+  if (mode === "edit" && draftId) {
     baseDraft = await IncentivePayPlanDraft.findById(draftId);
 
     if (!baseDraft) {
       return res.status(404).json({ message: "Draft not found" });
     }
-  } else {
-    baseDraft = await IncentivePayPlanDraft.findOne({
-      siteId,
-      serviceType,
-    }).sort({ createdAt: -1 });
   }
 
-  if (!baseDraft) {
+  const latestDraft = await IncentivePayPlanDraft.findOne({
+    siteId,
+    serviceType,
+  }).sort({ createdAt: -1 });
+
+  if (!isEdit) {
+    const version = latestDraft
+      ? nextMajorVersion(latestDraft.version)
+      : "v1.0000";
+
     const draft = await IncentivePayPlanDraft.create({
       siteId,
       serviceType,
       payload,
       status,
-      version: "v1.0000",
-      name: `SITE-${siteId}-${serviceType}-v1.0000`,
+      version,
+      name: `SITE-${siteId}-${serviceType}-${version}`,
       createdBy: req.user?.id,
     });
 
@@ -58,12 +76,13 @@ export async function createDraft(req, res) {
     }
   }
 
-  const latestDraft = await IncentivePayPlanDraft.findOne({
-    siteId,
-    serviceType,
-  }).sort({ createdAt: -1 });
+  let newVersion;
 
-  const newVersion = nextVersion(latestDraft?.version ?? "v1.0000");
+  if (isEdit) {
+    newVersion = nextPatchVersion(baseDraft.version);
+  } else {
+    newVersion = nextMajorVersion(latestDraft.version);
+  }
 
   try {
     const newDraft = await IncentivePayPlanDraft.create({

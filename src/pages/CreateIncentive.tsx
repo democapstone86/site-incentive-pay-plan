@@ -828,8 +828,20 @@ export default function CreateIncentivePayPlan() {
 
   const [selectedService, setSelectedService] = React.useState("");
 
+  type PageMode = "create" | "view" | "edit";
+
+  const [mode, setMode] = React.useState<PageMode>(state?.mode ?? "create");
+
+  React.useEffect(() => {
+    if (mode === "create") {
+      setDraftId(null);
+    }
+  }, [mode]);
+
   const hasServiceConflict = React.useMemo(() => {
     if (!selectedService || !siteId?.id) return false;
+
+    if (mode === "create") return false;
 
     return existingDrafts.some(
       (d) =>
@@ -837,7 +849,7 @@ export default function CreateIncentivePayPlan() {
         d.payload?.selectedService === selectedService &&
         d._id !== draftId,
     );
-  }, [existingDrafts, selectedService, siteId?.id, draftId]);
+  }, [existingDrafts, selectedService, siteId?.id, draftId, mode]);
 
   const canSaveDraft =
     Boolean(siteId?.id && selectedService) && !hasServiceConflict;
@@ -1441,7 +1453,7 @@ export default function CreateIncentivePayPlan() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           siteId: siteId.id,
-          draftId,
+          ...(mode === "edit" ? { draftId } : {}),
           payload: buildDraftPayload(),
           mode,
         }),
@@ -1475,10 +1487,6 @@ export default function CreateIncentivePayPlan() {
       setIsDraftLoading(false);
     }
   };
-
-  type PageMode = "create" | "view" | "edit";
-
-  const [mode, setMode] = React.useState<PageMode>(state?.mode ?? "create");
 
   const isViewMode = mode === "view";
   const isEditMode = mode === "edit";
