@@ -1500,6 +1500,8 @@ export default function CreateIncentivePayPlan() {
   // This is what your UI actually cares about
   const isReadOnly = isViewMode;
 
+  const isServiceTypeLocked = isEditMode || isViewMode;
+
   const isSaveDraftDisabled = isReadOnly || !canSaveDraft || isDraftLoading;
 
   React.useEffect(() => {
@@ -1800,16 +1802,18 @@ export default function CreateIncentivePayPlan() {
                 <select
                   className="
                     w-full appearance-none rounded-lg border border-slate-200
-                    bg-white px-3 py-1.5 text-xs
-                    text-inherit
-                    outline-none
+                    bg-white px-3 py-1.5 text-xs outline-none
 
-                    disabled:bg-slate-50
+                    disabled:bg-slate-100
+                    disabled:text-slate-500
                     disabled:cursor-not-allowed
                   "
                   value={selectedService}
-                  disabled={isReadOnly}
-                  onChange={(e) => setSelectedService(e.target.value)}
+                  disabled={isServiceTypeLocked}
+                  onChange={(e) => {
+                    if (isServiceTypeLocked) return;
+                    setSelectedService(e.target.value);
+                  }}
                 >
                   <option value="" disabled>
                     Select a service type
@@ -1834,8 +1838,15 @@ export default function CreateIncentivePayPlan() {
               <input
                 type="text"
                 value={version}
-                disabled
-                className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-800 outline-none"
+                disabled={isServiceTypeLocked}
+                className="
+                    w-full appearance-none rounded-lg border border-slate-200
+                    bg-white px-3 py-1.5 text-xs outline-none
+
+                    disabled:bg-slate-100
+                    disabled:text-slate-500
+                    disabled:cursor-not-allowed
+                  "
               />
             </div>
           </div>
