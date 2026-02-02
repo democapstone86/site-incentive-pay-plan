@@ -62,6 +62,7 @@ export async function createDraft(req, res) {
       version,
       name: `SITE-${siteId}-${serviceType}-${version}`,
       createdBy: req.user?.id,
+      rootDraftId: undefined,
     });
 
     return res.status(201).json(draft);
@@ -94,6 +95,7 @@ export async function createDraft(req, res) {
       name: `SITE-${siteId}-${serviceType}-${newVersion}`,
       createdBy: req.user?.id,
       previousDraftId: baseDraft._id,
+      rootDraftId: baseDraft.rootDraftId ?? baseDraft._id,
     });
 
     return res.status(201).json(newDraft);

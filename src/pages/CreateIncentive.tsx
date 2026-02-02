@@ -1454,9 +1454,9 @@ export default function CreateIncentivePayPlan() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           siteId: siteId.id,
-          ...(mode === "edit" ? { draftId } : {}),
+          draftId: draftId ?? undefined,
           payload: buildDraftPayload(),
-          mode,
+          mode: draftId ? "edit" : "create",
         }),
       });
 

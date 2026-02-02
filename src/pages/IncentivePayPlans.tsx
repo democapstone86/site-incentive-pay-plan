@@ -1362,23 +1362,7 @@ function UIPreview() {
           }
         }
 
-        const latestByService = new Map<string, any>();
-
         for (const d of drafts) {
-          const service = d.serviceType ?? d.payload?.selectedService;
-          if (!service) continue;
-
-          const existingDraft = latestByService.get(service);
-
-          if (
-            !existingDraft ||
-            new Date(d.createdAt) > new Date(existingDraft.createdAt)
-          ) {
-            latestByService.set(service, d);
-          }
-        }
-
-        for (const d of latestByService.values()) {
           byId.set(d._id, {
             id: d._id,
             name: d.name,
@@ -1407,6 +1391,7 @@ function UIPreview() {
             isArchived: d.status === "ARCHIVED",
 
             __isDraft: true,
+            createdAt: d.createdAt,
           });
         }
 

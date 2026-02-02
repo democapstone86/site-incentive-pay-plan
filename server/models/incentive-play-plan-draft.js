@@ -35,6 +35,11 @@ const DraftSchema = new mongoose.Schema(
       required: true,
     },
 
+    rootDraftId: {
+      type: mongoose.Schema.Types.ObjectId,
+      index: true,
+    },
+
     createdBy: {
       type: String,
     },
