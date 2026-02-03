@@ -218,6 +218,15 @@ function truncateText(value, maxLength = 80) {
   return value.slice(0, maxLength - 1) + "…";
 }
 
+function incrementVersion(version: string, step = 0.0001) {
+  if (!version?.startsWith("v")) return "v1.0000";
+
+  const numeric = Number(version.slice(1));
+  if (!Number.isFinite(numeric)) return "v1.0000";
+
+  return `v${(numeric + step).toFixed(4)}`;
+}
+
 function LinkedSection(props) {
   const {
     title,
@@ -835,6 +844,8 @@ export default function CreateIncentivePayPlan() {
   React.useEffect(() => {
     if (mode === "create") {
       setDraftId(null);
+      setVersion("v1.0000");
+      setHasIncrementedVersion(false);
     }
   }, [mode]);
 
@@ -850,6 +861,9 @@ export default function CreateIncentivePayPlan() {
         d._id !== draftId,
     );
   }, [existingDrafts, selectedService, siteId?.id, draftId, mode]);
+
+  const [hasIncrementedVersion, setHasIncrementedVersion] =
+    React.useState(false);
 
   const canSaveDraft =
     Boolean(siteId?.id && selectedService) && !hasServiceConflict;
@@ -873,6 +887,15 @@ export default function CreateIncentivePayPlan() {
       .then((data) => setExistingDrafts(data))
       .catch(() => setExistingDrafts([]));
   }, [siteId?.id]);
+
+  React.useEffect(() => {
+    if (mode !== "edit") return;
+    if (!version) return;
+    if (hasIncrementedVersion) return;
+
+    setVersion((prev) => (prev ? incrementVersion(prev) : prev));
+    setHasIncrementedVersion(true);
+  }, [mode]);
 
   const [minPercent, setMinPercent] = React.useState<number | "">("");
   const [stepPercent, setStepPercent] = React.useState<number | "">("");
@@ -1478,6 +1501,7 @@ export default function CreateIncentivePayPlan() {
 
       if (savedDraft.version) {
         setVersion(savedDraft.version);
+        setHasIncrementedVersion(false);
       }
 
       navigate("/incentive-pay-plans", {
