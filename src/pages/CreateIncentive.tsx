@@ -841,6 +841,13 @@ export default function CreateIncentivePayPlan() {
 
   const [mode, setMode] = React.useState<PageMode>(state?.mode ?? "create");
 
+  const previewVersion = React.useMemo(() => {
+    if (mode === "edit" && version) {
+      return incrementVersion(version);
+    }
+    return version;
+  }, [mode, version]);
+
   React.useEffect(() => {
     if (mode === "create") {
       setDraftId(null);
@@ -876,7 +883,7 @@ export default function CreateIncentivePayPlan() {
     if (!version) return "";
     const sitePart = siteId?.id ? `SITE-${siteId.id}` : "SITE-";
     const servicePart = selectedService ? `-${selectedService}` : "";
-    return `${sitePart}${servicePart}-${version}`;
+    return `${sitePart}${servicePart}-${previewVersion}`;
   }, [siteId?.id, selectedService, version]);
 
   React.useEffect(() => {
@@ -893,7 +900,6 @@ export default function CreateIncentivePayPlan() {
     if (!version) return;
     if (hasIncrementedVersion) return;
 
-    setVersion((prev) => (prev ? incrementVersion(prev) : prev));
     setHasIncrementedVersion(true);
   }, [mode]);
 
@@ -1861,7 +1867,7 @@ export default function CreateIncentivePayPlan() {
               </label>
               <input
                 type="text"
-                value={version}
+                value={previewVersion}
                 disabled={isServiceTypeLocked}
                 className="
                     w-full appearance-none rounded-lg border border-slate-200

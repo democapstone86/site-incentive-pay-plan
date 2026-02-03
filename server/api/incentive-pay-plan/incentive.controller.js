@@ -63,18 +63,10 @@ export async function createDraft(req, res) {
       name: `SITE-${siteId}-${serviceType}-${version}`,
       createdBy: req.user?.id,
       rootDraftId: undefined,
+      previousDraftId: latestDraft?._id,
     });
 
     return res.status(201).json(draft);
-  }
-
-  if (draftId) {
-    const hasChanges =
-      JSON.stringify(baseDraft.payload) !== JSON.stringify(payload);
-
-    if (!hasChanges) {
-      return res.status(409).json({ message: "No changes detected" });
-    }
   }
 
   let newVersion;
@@ -173,7 +165,7 @@ export async function getDraftsBySite(req, res) {
   }
 
   const drafts = await IncentivePayPlanDraft.find({ siteId })
-    .sort({ updatedAt: -1 })
+    .sort({ createdAt: -1 })
     .lean();
 
   res.json(drafts);
