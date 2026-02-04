@@ -227,6 +227,29 @@ function incrementVersion(version: string, step = 0.0001) {
   return `v${(numeric + step).toFixed(4)}`;
 }
 
+function getNextVersionForService(
+  drafts: any[],
+  siteId: string,
+  service: string,
+) {
+  const versions = drafts
+    .filter(
+      (d) =>
+        String(d.siteId) === String(siteId) &&
+        d.payload?.selectedService === service &&
+        typeof d.version === "string",
+    )
+    .map((d) => d.version)
+    .filter((v) => v.startsWith("v"))
+    .map((v) => Number(v.slice(1)))
+    .filter(Number.isFinite);
+
+  if (!versions.length) return "v1.0000";
+
+  const max = Math.max(...versions);
+  return `v${(max + 1.0).toFixed(4)}`;
+}
+
 function LinkedSection(props) {
   const {
     title,
@@ -840,13 +863,18 @@ export default function CreateIncentivePayPlan() {
   type PageMode = "create" | "view" | "edit";
 
   const [mode, setMode] = React.useState<PageMode>(state?.mode ?? "create");
+  const [hasIncrementedVersion, setHasIncrementedVersion] =
+    React.useState(false);
 
   const previewVersion = React.useMemo(() => {
-    if (mode === "edit" && version) {
-      return incrementVersion(version);
+    if (!version) return "";
+
+    if (mode === "edit") {
+      return incrementVersion(version, 0.0001);
     }
+
     return version;
-  }, [mode, version]);
+  }, [version, mode]);
 
   React.useEffect(() => {
     if (mode === "create") {
@@ -855,6 +883,20 @@ export default function CreateIncentivePayPlan() {
       setHasIncrementedVersion(false);
     }
   }, [mode]);
+
+  React.useEffect(() => {
+    if (mode !== "create") return;
+    if (!siteId?.id) return;
+    if (!selectedService) return;
+
+    const next = getNextVersionForService(
+      existingDrafts,
+      siteId.id,
+      selectedService,
+    );
+
+    setVersion(next);
+  }, [mode, siteId?.id, selectedService, existingDrafts]);
 
   const hasServiceConflict = React.useMemo(() => {
     if (!selectedService || !siteId?.id) return false;
@@ -865,12 +907,11 @@ export default function CreateIncentivePayPlan() {
       (d) =>
         String(d.siteId) === String(siteId.id) &&
         d.payload?.selectedService === selectedService &&
-        d._id !== draftId,
+        d._id !== draftId &&
+        d.rootDraftId &&
+        d.rootDraftId !== draftId,
     );
   }, [existingDrafts, selectedService, siteId?.id, draftId, mode]);
-
-  const [hasIncrementedVersion, setHasIncrementedVersion] =
-    React.useState(false);
 
   const canSaveDraft =
     Boolean(siteId?.id && selectedService) && !hasServiceConflict;
@@ -1469,6 +1510,11 @@ export default function CreateIncentivePayPlan() {
     if (isReadOnly) return;
     if (hasServiceConflict) return;
     if (!siteId?.id) return;
+    const shouldForkVersion = mode === "edit" && !hasIncrementedVersion;
+
+    if (mode === "edit" && !draftId) {
+      throw new Error("Edit mode requires a draftId");
+    }
 
     try {
       if (hasServiceConflict) {
@@ -1483,9 +1529,9 @@ export default function CreateIncentivePayPlan() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           siteId: siteId.id,
-          draftId: draftId ?? undefined,
+          draftId: shouldForkVersion ? undefined : draftId,
           payload: buildDraftPayload(),
-          mode: draftId ? "edit" : "create",
+          mode,
         }),
       });
 
@@ -1510,9 +1556,11 @@ export default function CreateIncentivePayPlan() {
         setHasIncrementedVersion(false);
       }
 
-      navigate("/incentive-pay-plans", {
-        state: { siteId },
-      });
+      if (mode === "create" || mode === "edit") {
+        navigate("/incentive-pay-plans", {
+          state: { siteId },
+        });
+      }
 
       console.log("✅ Draft saved to MongoDB:", savedDraft);
     } catch (err) {
@@ -1526,6 +1574,7 @@ export default function CreateIncentivePayPlan() {
   const isViewMode = mode === "view";
   const isEditMode = mode === "edit";
   const isCreateMode = mode === "create";
+  const isEditingExisting = isEditMode && !!draftId;
 
   // This is what your UI actually cares about
   const isReadOnly = isViewMode;
@@ -1536,6 +1585,7 @@ export default function CreateIncentivePayPlan() {
 
   React.useEffect(() => {
     if (!state?.draftId) return;
+    setMode("edit");
 
     let cancelled = false;
 
