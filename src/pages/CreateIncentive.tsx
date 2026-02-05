@@ -863,6 +863,11 @@ export default function CreateIncentivePayPlan() {
   type PageMode = "create" | "view" | "edit";
 
   const [mode, setMode] = React.useState<PageMode>(state?.mode ?? "create");
+
+  const [originalPayload, setOriginalPayload] = React.useState<string | null>(
+    null,
+  );
+
   const [hasIncrementedVersion, setHasIncrementedVersion] =
     React.useState(false);
 
@@ -1039,6 +1044,13 @@ export default function CreateIncentivePayPlan() {
   React.useEffect(() => {
     console.log(buildDraftPayload());
   }, [buildDraftPayload]);
+
+  const isDirty = React.useMemo(() => {
+    if (mode !== "edit") return true; // create mode always allows saving
+    if (!originalPayload) return false;
+
+    return JSON.stringify(buildDraftPayload()) !== originalPayload;
+  }, [mode, originalPayload, buildDraftPayload]);
 
   const [combinationSearch, setCombinationSearch] = React.useState("");
   const excludedCount = appCombinations.filter((row) => row.excluded).length;
@@ -1581,7 +1593,8 @@ export default function CreateIncentivePayPlan() {
 
   const isServiceTypeLocked = isEditMode || isViewMode;
 
-  const isSaveDraftDisabled = isReadOnly || !canSaveDraft || isDraftLoading;
+  const isSaveDraftDisabled =
+    isReadOnly || !canSaveDraft || isDraftLoading || !isDirty;
 
   React.useEffect(() => {
     if (!state?.draftId) return;
@@ -1603,6 +1616,8 @@ export default function CreateIncentivePayPlan() {
 
         const draft = await res.json();
         const p = draft.payload;
+
+        setOriginalPayload(JSON.stringify(p));
 
         if (draft.name) {
           const v = draft.name.split("-").pop();
