@@ -74,7 +74,9 @@ export async function createDraft(req, res) {
   if (isEdit) {
     newVersion = nextPatchVersion(baseDraft.version);
   } else {
-    newVersion = nextMajorVersion(latestDraft.version);
+    newVersion = latestDraft
+      ? nextMajorVersion(latestDraft.version)
+      : "v1.0000";
   }
 
   try {

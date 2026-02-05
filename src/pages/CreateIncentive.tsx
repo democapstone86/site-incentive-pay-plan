@@ -250,6 +250,29 @@ function getNextVersionForService(
   return `v${(max + 1.0).toFixed(4)}`;
 }
 
+function getNextPatchPreviewVersion(
+  drafts: any[],
+  siteId: string,
+  service: string,
+) {
+  const versions = drafts
+    .filter(
+      (d) =>
+        String(d.siteId) === String(siteId) &&
+        d.payload?.selectedService === service &&
+        typeof d.version === "string",
+    )
+    .map((d) => d.version)
+    .filter((v) => v.startsWith("v"))
+    .map((v) => Number(v.slice(1)))
+    .filter(Number.isFinite);
+
+  if (!versions.length) return "v1.0001";
+
+  const max = Math.max(...versions);
+  return `v${(max + 0.0001).toFixed(4)}`;
+}
+
 function LinkedSection(props) {
   const {
     title,
@@ -868,24 +891,30 @@ export default function CreateIncentivePayPlan() {
     null,
   );
 
-  const [hasIncrementedVersion, setHasIncrementedVersion] =
-    React.useState(false);
-
   const previewVersion = React.useMemo(() => {
     if (!version) return "";
 
-    if (mode === "edit") {
-      return incrementVersion(version, 0.0001);
+    if (
+      mode === "edit" &&
+      siteId?.id &&
+      selectedService &&
+      existingDrafts.length
+    ) {
+      return getNextPatchPreviewVersion(
+        existingDrafts,
+        siteId.id,
+        selectedService,
+      );
     }
 
     return version;
-  }, [version, mode]);
+  }, [version, mode, siteId?.id, selectedService, existingDrafts]);
 
   React.useEffect(() => {
     if (mode === "create") {
       setDraftId(null);
       setVersion("v1.0000");
-      setHasIncrementedVersion(false);
+      // setHasIncrementedVersion(false);
     }
   }, [mode]);
 
@@ -940,14 +969,6 @@ export default function CreateIncentivePayPlan() {
       .then((data) => setExistingDrafts(data))
       .catch(() => setExistingDrafts([]));
   }, [siteId?.id]);
-
-  React.useEffect(() => {
-    if (mode !== "edit") return;
-    if (!version) return;
-    if (hasIncrementedVersion) return;
-
-    setHasIncrementedVersion(true);
-  }, [mode]);
 
   const [minPercent, setMinPercent] = React.useState<number | "">("");
   const [stepPercent, setStepPercent] = React.useState<number | "">("");
@@ -1522,7 +1543,8 @@ export default function CreateIncentivePayPlan() {
     if (isReadOnly) return;
     if (hasServiceConflict) return;
     if (!siteId?.id) return;
-    const shouldForkVersion = mode === "edit" && !hasIncrementedVersion;
+
+    const shouldForkVersion = mode === "edit";
 
     if (mode === "edit" && !draftId) {
       throw new Error("Edit mode requires a draftId");
@@ -1565,7 +1587,7 @@ export default function CreateIncentivePayPlan() {
 
       if (savedDraft.version) {
         setVersion(savedDraft.version);
-        setHasIncrementedVersion(false);
+        // setHasIncrementedVersion(false);
       }
 
       if (mode === "create" || mode === "edit") {

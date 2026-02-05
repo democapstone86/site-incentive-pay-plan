@@ -48,6 +48,11 @@ const DraftSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "IncentivePayPlanDraft",
     },
+
+    baseDraftId: {
+      type: mongoose.Schema.Types.ObjectId,
+      index: true,
+    },
   },
   { timestamps: true },
 );

@@ -1366,6 +1366,7 @@ function UIPreview() {
           byId.set(d._id, {
             id: d._id,
             name: d.name,
+            version: d.version,
 
             status:
               d.status === "SUBMITTED"
