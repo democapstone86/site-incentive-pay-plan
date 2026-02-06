@@ -218,15 +218,6 @@ function truncateText(value, maxLength = 80) {
   return value.slice(0, maxLength - 1) + "…";
 }
 
-function incrementVersion(version: string, step = 0.0001) {
-  if (!version?.startsWith("v")) return "v1.0000";
-
-  const numeric = Number(version.slice(1));
-  if (!Number.isFinite(numeric)) return "v1.0000";
-
-  return `v${(numeric + step).toFixed(4)}`;
-}
-
 function getNextVersionForService(
   drafts: any[],
   siteId: string,
@@ -851,6 +842,8 @@ export default function CreateIncentivePayPlan() {
   const [draftId, setDraftId] = React.useState<string | null>(
     state?.draftId ?? null,
   );
+  type PageMode = "create" | "view" | "edit";
+  const [mode, setMode] = React.useState<PageMode>(state?.mode ?? "create");
 
   const [version, setVersion] = React.useState<string | null>("v1.0000");
 
@@ -860,32 +853,19 @@ export default function CreateIncentivePayPlan() {
 
   const [selectedService, setSelectedService] = React.useState("");
 
-  type PageMode = "create" | "view" | "edit";
-
-  const [mode, setMode] = React.useState<PageMode>(state?.mode ?? "create");
-
   const [originalPayload, setOriginalPayload] = React.useState<string | null>(
     null,
   );
 
-  const [hasIncrementedVersion, setHasIncrementedVersion] =
-    React.useState(false);
-
   const previewVersion = React.useMemo(() => {
-    if (!version) return "";
-
-    if (mode === "edit") {
-      return incrementVersion(version, 0.0001);
-    }
-
-    return version;
-  }, [version, mode]);
+    return version ?? "";
+  }, [version]);
 
   React.useEffect(() => {
     if (mode === "create") {
       setDraftId(null);
       setVersion("v1.0000");
-      setHasIncrementedVersion(false);
+      // setHasIncrementedVersion(false);
     }
   }, [mode]);
 
@@ -903,10 +883,41 @@ export default function CreateIncentivePayPlan() {
     setVersion(next);
   }, [mode, siteId?.id, selectedService, existingDrafts]);
 
+  React.useEffect(() => {
+    if (mode !== "edit") return;
+    if (!draftId) return;
+
+    let cancelled = false;
+
+    async function loadPreviewVersion() {
+      try {
+        const res = await fetch(
+          `/api/incentive-pay-plan/draft/${draftId}/preview-version`,
+        );
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+
+        if (!cancelled) {
+          setVersion(data.nextVersion);
+        }
+      } catch {
+        // fail silently – preview is informational only
+      }
+    }
+
+    loadPreviewVersion();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, draftId]);
+
   const hasServiceConflict = React.useMemo(() => {
     if (!selectedService || !siteId?.id) return false;
 
-    if (mode === "create") return false;
+    if (mode !== "create") return false;
 
     return existingDrafts.some(
       (d) =>
@@ -940,14 +951,6 @@ export default function CreateIncentivePayPlan() {
       .then((data) => setExistingDrafts(data))
       .catch(() => setExistingDrafts([]));
   }, [siteId?.id]);
-
-  React.useEffect(() => {
-    if (mode !== "edit") return;
-    if (!version) return;
-    if (hasIncrementedVersion) return;
-
-    setHasIncrementedVersion(true);
-  }, [mode]);
 
   const [minPercent, setMinPercent] = React.useState<number | "">("");
   const [stepPercent, setStepPercent] = React.useState<number | "">("");
@@ -1522,7 +1525,8 @@ export default function CreateIncentivePayPlan() {
     if (isReadOnly) return;
     if (hasServiceConflict) return;
     if (!siteId?.id) return;
-    const shouldForkVersion = mode === "edit" && !hasIncrementedVersion;
+
+    const shouldForkVersion = mode === "edit";
 
     if (mode === "edit" && !draftId) {
       throw new Error("Edit mode requires a draftId");
@@ -1541,7 +1545,7 @@ export default function CreateIncentivePayPlan() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           siteId: siteId.id,
-          draftId: shouldForkVersion ? undefined : draftId,
+          draftId: mode === "edit" ? draftId : undefined,
           payload: buildDraftPayload(),
           mode,
         }),
@@ -1565,7 +1569,7 @@ export default function CreateIncentivePayPlan() {
 
       if (savedDraft.version) {
         setVersion(savedDraft.version);
-        setHasIncrementedVersion(false);
+        // setHasIncrementedVersion(false);
       }
 
       if (mode === "create" || mode === "edit") {

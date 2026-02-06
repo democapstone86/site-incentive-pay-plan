@@ -19,85 +19,130 @@ function nextPatchVersion(version) {
   return `v${major}.${String(patch + 1).padStart(4, "0")}`;
 }
 
+export async function previewNextPatchVersion(req, res) {
+  const { draftId } = req.params;
+
+  const base = await IncentivePayPlanDraft.findById(draftId);
+  if (!base) return res.sendStatus(404);
+
+  const { siteId, serviceType, version } = base;
+
+  const existing = await IncentivePayPlanDraft.find({
+    siteId,
+    serviceType,
+  }).select("version");
+
+  const used = new Set(existing.map((d) => d.version));
+
+  let candidate = nextPatchVersion(version);
+  while (used.has(candidate)) {
+    candidate = nextPatchVersion(candidate);
+  }
+
+  res.json({
+    baseVersion: version,
+    nextVersion: candidate,
+  });
+}
+
 export async function createDraft(req, res) {
-  const rawSiteId = req.body.siteId;
+  const { siteId: rawSiteId, payload, draftId } = req.body;
   const siteId = String(rawSiteId);
-  const { payload, draftId, mode } = req.body;
-
-  const isEdit = mode === "edit" && !!draftId;
-
   const serviceType = payload?.selectedService;
 
   if (!siteId || !serviceType) {
     return res.status(400).json({ error: "Missing siteId or serviceType" });
   }
 
-  const status = computeIncentivePayPlanStatus(payload);
+  try {
+    if (draftId) {
+      const revised = await createRevisionDraft({
+        baseDraftId: draftId,
+        payload,
+        userId: req.user?.id,
+      });
 
-  let baseDraft = null;
+      if (!revised) {
+        return res.status(404).json({ message: "Draft not found" });
+      }
 
-  if (mode === "edit" && draftId) {
-    baseDraft = await IncentivePayPlanDraft.findById(draftId);
-
-    if (!baseDraft) {
-      return res.status(404).json({ message: "Draft not found" });
+      return res.status(201).json(revised);
     }
+
+    const created = await createNewDraft({
+      siteId,
+      serviceType,
+      payload,
+      userId: req.user?.id,
+    });
+    return res.status(201).json(created);
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ message: "This version already exists." });
+    }
+    throw err;
   }
+}
+
+async function createNewDraft({ siteId, serviceType, payload, userId }) {
+  const status = computeIncentivePayPlanStatus(payload);
 
   const latestDraft = await IncentivePayPlanDraft.findOne({
     siteId,
     serviceType,
   }).sort({ createdAt: -1 });
 
-  if (!isEdit) {
-    const version = latestDraft
-      ? nextMajorVersion(latestDraft.version)
-      : "v1.0000";
+  const version = latestDraft
+    ? nextMajorVersion(latestDraft.version)
+    : "v1.0000";
 
-    const draft = await IncentivePayPlanDraft.create({
-      siteId,
-      serviceType,
-      payload,
-      status,
-      version,
-      name: `SITE-${siteId}-${serviceType}-${version}`,
-      createdBy: req.user?.id,
-      rootDraftId: undefined,
-      previousDraftId: latestDraft?._id,
-    });
+  return IncentivePayPlanDraft.create({
+    siteId,
+    serviceType,
+    payload,
+    status,
+    version,
+    name: `SITE-${siteId}-${serviceType}-${version}`,
+    createdBy: userId,
+    previousDraftId: latestDraft?._id,
+    rootDraftId: undefined,
+  });
+}
 
-    return res.status(201).json(draft);
+async function createRevisionDraft({ baseDraftId, payload, userId }) {
+  const baseDraft = await IncentivePayPlanDraft.findById(baseDraftId);
+  if (!baseDraft) return null;
+
+  const { siteId, serviceType } = baseDraft;
+
+  const existingVersions = await IncentivePayPlanDraft.find({
+    siteId,
+    serviceType,
+  }).select("version");
+
+  const usedVersions = new Set(existingVersions.map((d) => d.version));
+
+  let candidateVersion = nextPatchVersion(baseDraft.version);
+
+  while (usedVersions.has(candidateVersion)) {
+    candidateVersion = nextPatchVersion(candidateVersion);
   }
 
-  let newVersion;
+  return IncentivePayPlanDraft.create({
+    siteId,
+    serviceType,
+    payload,
+    status: computeIncentivePayPlanStatus(payload),
 
-  if (isEdit) {
-    newVersion = nextPatchVersion(baseDraft.version);
-  } else {
-    newVersion = nextMajorVersion(latestDraft.version);
-  }
+    version: candidateVersion,
+    name: `SITE-${siteId}-${serviceType}-${candidateVersion}`,
 
-  try {
-    const newDraft = await IncentivePayPlanDraft.create({
-      siteId,
-      serviceType,
-      payload,
-      status,
-      version: newVersion,
-      name: `SITE-${siteId}-${serviceType}-${newVersion}`,
-      createdBy: req.user?.id,
-      previousDraftId: baseDraft._id,
-      rootDraftId: baseDraft.rootDraftId ?? baseDraft._id,
-    });
+    createdBy: userId,
 
-    return res.status(201).json(newDraft);
-  } catch (err) {
-    if (err.code === 11000) {
-      return res.status(409).json({ message: "This version already exists." });
-    }
-
-    throw err;
-  }
+    previousDraftId: baseDraft._id,
+    rootDraftId: baseDraft.rootDraftId ?? baseDraft._id,
+    baseDraftId: baseDraft._id,
+  });
 }
 
 export async function deleteDraft(req, res) {
@@ -158,17 +203,22 @@ export async function getDraftById(req, res) {
 }
 
 export async function getDraftsBySite(req, res) {
-  const { siteId } = req.query;
+  try {
+    const { siteId } = req.query;
 
-  if (!siteId) {
-    return res.status(400).json({ error: "Missing siteId" });
+    if (!siteId) {
+      return res.status(400).json({ error: "Missing siteId" });
+    }
+
+    const drafts = await IncentivePayPlanDraft.find({ siteId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json(drafts);
+  } catch (err) {
+    console.error("❌ getDraftsBySite failed:", err);
+    res.status(500).json({ error: "Failed to load drafts" });
   }
-
-  const drafts = await IncentivePayPlanDraft.find({ siteId })
-    .sort({ createdAt: -1 })
-    .lean();
-
-  res.json(drafts);
 }
 
 export async function updateDraft(req, res) {

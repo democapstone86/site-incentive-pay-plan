@@ -17,6 +17,7 @@ const DraftSchema = new mongoose.Schema(
     version: {
       type: String,
       required: true,
+      immutable: true,
     },
 
     name: {
@@ -47,6 +48,11 @@ const DraftSchema = new mongoose.Schema(
     previousDraftId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "IncentivePayPlanDraft",
+    },
+
+    baseDraftId: {
+      type: mongoose.Schema.Types.ObjectId,
+      index: true,
     },
   },
   { timestamps: true },
