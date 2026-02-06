@@ -17,6 +17,7 @@ const DraftSchema = new mongoose.Schema(
     version: {
       type: String,
       required: true,
+      immutable: true,
     },
 
     name: {

@@ -218,15 +218,6 @@ function truncateText(value, maxLength = 80) {
   return value.slice(0, maxLength - 1) + "…";
 }
 
-function incrementVersion(version: string, step = 0.0001) {
-  if (!version?.startsWith("v")) return "v1.0000";
-
-  const numeric = Number(version.slice(1));
-  if (!Number.isFinite(numeric)) return "v1.0000";
-
-  return `v${(numeric + step).toFixed(4)}`;
-}
-
 function getNextVersionForService(
   drafts: any[],
   siteId: string,
@@ -248,29 +239,6 @@ function getNextVersionForService(
 
   const max = Math.max(...versions);
   return `v${(max + 1.0).toFixed(4)}`;
-}
-
-function getNextPatchPreviewVersion(
-  drafts: any[],
-  siteId: string,
-  service: string,
-) {
-  const versions = drafts
-    .filter(
-      (d) =>
-        String(d.siteId) === String(siteId) &&
-        d.payload?.selectedService === service &&
-        typeof d.version === "string",
-    )
-    .map((d) => d.version)
-    .filter((v) => v.startsWith("v"))
-    .map((v) => Number(v.slice(1)))
-    .filter(Number.isFinite);
-
-  if (!versions.length) return "v1.0001";
-
-  const max = Math.max(...versions);
-  return `v${(max + 0.0001).toFixed(4)}`;
 }
 
 function LinkedSection(props) {
@@ -874,6 +842,8 @@ export default function CreateIncentivePayPlan() {
   const [draftId, setDraftId] = React.useState<string | null>(
     state?.draftId ?? null,
   );
+  type PageMode = "create" | "view" | "edit";
+  const [mode, setMode] = React.useState<PageMode>(state?.mode ?? "create");
 
   const [version, setVersion] = React.useState<string | null>("v1.0000");
 
@@ -883,32 +853,13 @@ export default function CreateIncentivePayPlan() {
 
   const [selectedService, setSelectedService] = React.useState("");
 
-  type PageMode = "create" | "view" | "edit";
-
-  const [mode, setMode] = React.useState<PageMode>(state?.mode ?? "create");
-
   const [originalPayload, setOriginalPayload] = React.useState<string | null>(
     null,
   );
 
   const previewVersion = React.useMemo(() => {
-    if (!version) return "";
-
-    if (
-      mode === "edit" &&
-      siteId?.id &&
-      selectedService &&
-      existingDrafts.length
-    ) {
-      return getNextPatchPreviewVersion(
-        existingDrafts,
-        siteId.id,
-        selectedService,
-      );
-    }
-
-    return version;
-  }, [version, mode, siteId?.id, selectedService, existingDrafts]);
+    return version ?? "";
+  }, [version]);
 
   React.useEffect(() => {
     if (mode === "create") {
@@ -932,10 +883,41 @@ export default function CreateIncentivePayPlan() {
     setVersion(next);
   }, [mode, siteId?.id, selectedService, existingDrafts]);
 
+  React.useEffect(() => {
+    if (mode !== "edit") return;
+    if (!draftId) return;
+
+    let cancelled = false;
+
+    async function loadPreviewVersion() {
+      try {
+        const res = await fetch(
+          `/api/incentive-pay-plan/draft/${draftId}/preview-version`,
+        );
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+
+        if (!cancelled) {
+          setVersion(data.nextVersion);
+        }
+      } catch {
+        // fail silently – preview is informational only
+      }
+    }
+
+    loadPreviewVersion();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, draftId]);
+
   const hasServiceConflict = React.useMemo(() => {
     if (!selectedService || !siteId?.id) return false;
 
-    if (mode === "create") return false;
+    if (mode !== "create") return false;
 
     return existingDrafts.some(
       (d) =>
@@ -1563,7 +1545,7 @@ export default function CreateIncentivePayPlan() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           siteId: siteId.id,
-          draftId: shouldForkVersion ? undefined : draftId,
+          draftId: mode === "edit" ? draftId : undefined,
           payload: buildDraftPayload(),
           mode,
         }),
